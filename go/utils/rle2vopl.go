@@ -20,23 +20,23 @@ func RunRLE2VOPL(rleArg, outPath string) error {
 		}
 		i, err := strconv.Atoi(p)
 		if err != nil {
-			return fmt.Errorf("erro ao converter RLE '%s': %w", p, err)
+			return fmt.Errorf("failed to parse RLE '%s': %w", p, err)
 		}
 		rle = append(rle, i)
 	}
 
 	grid, err := vopl.ExpandRLE(rle)
 	if err != nil {
-		return fmt.Errorf("erro ao expandir RLE: %w", err)
+		return fmt.Errorf("failed to expand RLE: %w", err)
 	}
 	if err := vopl.SaveVoplGridV3(grid, outPath); err != nil {
-		return fmt.Errorf("erro ao salvar VOPL: %w", err)
+		return fmt.Errorf("failed to save VOPL: %w", err)
 	}
 
 	if fi, err := os.Stat(outPath); err == nil {
-		fmt.Printf(".vopl salvo (%d bytes)\n", fi.Size())
+		fmt.Printf(".vopl saved (%d bytes)\n", fi.Size())
 	} else {
-		fmt.Println(".vopl salvo.")
+		fmt.Println(".vopl saved.")
 	}
 	return nil
 }

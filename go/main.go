@@ -8,10 +8,11 @@ import (
 )
 
 func usage() {
-	fmt.Println("Uso: vopltool <command> [args]")
-	fmt.Println("Comandos:")
-	fmt.Println("  rle2vopl \"10,0,4,1,...\" output.vopl    (gera .vopl v3 64 cores a partir de RLE)")
-	fmt.Println("  vopl2glb input.vopl output.glb         (converte .vopl -> .glb com greedy mesh)")
+	fmt.Println("Usage: vopltool <command> [args]")
+	fmt.Println("Commands:")
+	fmt.Println("  rle2vopl \"10,0,4,1,...\" output.vopl    (generate .vopl v3 with 64 colors from RLE)")
+	fmt.Println("  vopl2glb input.vopl output.glb         (convert .vopl -> .glb using greedy mesh)")
+	fmt.Println("  vopl2voplpack output.voplpack input1.vopl [input2.vopl ...]   (pack multiple .vopl into a .voplpack)")
 }
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 			os.Exit(1)
 		}
 		if err := utils.RunRLE2VOPL(os.Args[2], os.Args[3]); err != nil {
-			fmt.Println("Erro:", err)
+			fmt.Println("Error:", err)
 			os.Exit(1)
 		}
 	case "vopl2glb":
@@ -36,7 +37,18 @@ func main() {
 			os.Exit(1)
 		}
 		if err := utils.RunVOPL2GLB(os.Args[2], os.Args[3]); err != nil {
-			fmt.Println("Erro:", err)
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+	case "vopl2voplpack":
+		if len(os.Args) < 4 {
+			usage()
+			os.Exit(1)
+		}
+		output := os.Args[2]
+		inputs := os.Args[3:]
+		if err := utils.CreatePack(inputs, output); err != nil {
+			fmt.Println("Error:", err)
 			os.Exit(1)
 		}
 	default:
@@ -44,5 +56,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Operação completa!")
+	fmt.Println("Operation completed!")
 }

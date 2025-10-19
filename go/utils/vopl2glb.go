@@ -36,7 +36,7 @@ func RunVOPL2GLB(inPath, outPath string) error {
 	indices := make([]uint32, len(mesh.Indices))
 	copy(indices, mesh.Indices)
 
-	// flat normals por face
+	// flat normals per face
 	normals := make([][3]float32, len(positions))
 	for i := 0; i < len(indices); i += 3 {
 		v0, v1, v2 := indices[i], indices[i+1], indices[i+2]
