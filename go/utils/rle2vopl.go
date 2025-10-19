@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"vopltool/vopl"
+	"github.com/voxelsplace/vopl/go/vopl"
 )
 
 func RunRLE2VOPL(rleArg, outPath string) error {

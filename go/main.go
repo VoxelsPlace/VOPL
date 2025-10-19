@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"vopltool/utils"
+	"github.com/voxelsplace/vopl/go/utils"
 )
 
 func usage() {
