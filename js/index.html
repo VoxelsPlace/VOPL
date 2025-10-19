@@ -12,6 +12,9 @@
       #dropzone { border: 2px dashed #888; border-radius: 8px; padding: 16px; text-align: center; color: #bbb; }
       #dropzone.dragover { border-color: #3af; color: #3af; background: #3af1; }
       #status { font-size: 12px; color: #8a8; min-height: 1.5em; }
+      #timing { font-size: 11px; color: #888; font-family: monospace; min-height: 1.5em; max-height: 150px; overflow-y: auto; line-height: 1.4; }
+      #timing div { opacity: 0.9; }
+      #timing div:last-child { opacity: 1; font-weight: 500; }
       #toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
       label { font-size: 13px; opacity: 0.9; }
       select, input[type="file"], button { width: 100%; }
@@ -37,6 +40,7 @@
       </div>
 
       <div id="status"></div>
+      <div id="timing"></div>
       <footer>
         <div>• .vopl is converted to .glb in-memory with WASM</div>
         <div>• .voplpack entries can be selected and viewed</div>
@@ -51,6 +55,7 @@
       import { initVoplWasm } from './browser.js';
 
       const statusEl = document.getElementById('status');
+      const timingEl = document.getElementById('timing');
       const viewerEl = document.getElementById('viewer');
       const packSelect = document.getElementById('packSelect');
       const fileInput = document.getElementById('fileInput');
@@ -60,8 +65,11 @@
       // Initialize wasm
       let api;
       try {
+        const t0 = performance.now();
         api = await initVoplWasm('./vopl.wasm');
+        const t1 = performance.now();
         setStatus('WASM ready. Load a .vopl or .voplpack.');
+        setTiming(`WASM init: ${(t1 - t0).toFixed(1)}ms`);
       } catch (e) {
         setStatus('Failed to initialize WASM: ' + e.message);
         throw e;
@@ -114,6 +122,13 @@
         statusEl.textContent = msg;
       }
 
+      function setTiming(msg) {
+        const entry = document.createElement('div');
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        timingEl.appendChild(entry);
+        timingEl.scrollTop = timingEl.scrollHeight;
+      }
+
       function clearContent() {
         for (let i = contentGroup.children.length - 1; i >= 0; i--) {
           const child = contentGroup.children[i];
@@ -149,14 +164,18 @@
       async function renderGLBFromBytes(glbBytes) {
         return new Promise((resolve, reject) => {
           try {
+            const t0 = performance.now();
             const blob = new Blob([glbBytes], { type: 'model/gltf-binary' });
             const url = URL.createObjectURL(blob);
             loader.load(url, (gltf) => {
+              const t1 = performance.now();
               URL.revokeObjectURL(url);
               clearContent();
               contentGroup.add(gltf.scene);
               fitViewToObject(gltf.scene);
               setStatus('Model loaded.');
+              const vertices = gltf.scene.children[0]?.children[0]?.geometry?.attributes?.position?.count || 0;
+              setTiming(`GLB parse & render: ${(t1 - t0).toFixed(1)}ms (${vertices} vertices)`);
               resolve();
             }, undefined, (err) => {
               URL.revokeObjectURL(url);
@@ -170,10 +189,14 @@
 
       async function renderVOPLBytes(voplBytes) {
         setStatus('Converting .vopl -> .glb ...');
+        const t0 = performance.now();
         const out = api.vopl2glb(voplBytes);
+        const t1 = performance.now();
         if (typeof out === 'string') {
           throw new Error(out);
         }
+        const convTime = (t1 - t0).toFixed(1);
+        setTiming(`VOPL->GLB: ${convTime}ms (${out.length} bytes)`);
         await renderGLBFromBytes(out);
       }
 
@@ -186,8 +209,10 @@
       // Handle .voplpack file
       async function handleVOPLPACKFile(file) {
         setStatus('Reading .voplpack ...');
+        const t0 = performance.now();
         const buf = new Uint8Array(await file.arrayBuffer());
         const filesObj = api.unpackVoplpack(buf);
+        const t1 = performance.now();
         if (typeof filesObj === 'string') {
           throw new Error(filesObj);
         }
@@ -201,7 +226,9 @@
           packSelect.appendChild(opt);
         }
         packSelect.disabled = names.length === 0;
+        const unpackTime = (t1 - t0).toFixed(1);
         setStatus(names.length ? `Pack loaded (${names.length} entries). Select one to view.` : 'Empty pack.');
+        setTiming(`Unpack: ${unpackTime}ms | ${names.length} entries`);
 
         if (names.length) {
           // Auto-render first
