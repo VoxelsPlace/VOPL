@@ -1,11 +1,11 @@
-## VOPL File Format (v1, v2, v3) and VOPLPACK
+## VOPL File Format (v3) and VOPLPACK
 
 This document specifies the binary layout and behavior of `.vopl` and `.voplpack` exactly as implemented here. It covers field sizes, endianness, bit-level packing, voxel ordering (3D Morton/Z-order), encodings, compression, palette mapping, container, and runnable examples in Go and JavaScript.
 
 ### Scope
 - All multi-byte integers are little-endian.
 - Voxel value = palette index. 0 = empty/transparent; nonzero = solid.
-- The implementation uses fixed chunk size `Width=16`, `Height=16`, `Depth=16`. v2/v3 headers carry w/h/d but the decoder assumes 16³ regardless.
+- The implementation uses fixed chunk size `Width=16`, `Height=16`, `Depth=16`. The decoder assumes 16³ regardless of header values.
 - Bitstreams are LSB-first within each byte.
 
 
@@ -58,38 +58,7 @@ The linear stream order is ascending by key `morton3D(x,y,z) = expand3(x) | (exp
 - If compressed, payload must be valid zlib.
 - Decoder reconstructs a 16×16×16 grid, ignoring w/h/d.
 
-
-## .vopl v2 (legacy grid)
-
-### Header (15 bytes total, including magic)
-- magic: 4 bytes ASCII `VOPL`
-- ver: uint8 = 2
-- enc: uint8 (bit7=zlib, bits[6:0]=encoding id 0/1/2)
-- w: uint8 (ignored by decoder; assumes 16)
-- h: uint8 (ignored)
-- d: uint8 (ignored)
-- pal: uint16
-- plen: uint32
-
-### Payload encodings
-- bpp is implicitly 5 (palette indices 0..31)
-- Dense: N values, 5 bits each
-- Sparse: count: 8 bits; then `count`× (idx: 8 bits, value: 5 bits)
-- RLE: repeated (run_minus_1: 8 bits, value: 5 bits) until N values
-- Optional zlib if `enc & 0x80 != 0`
-
-
-## .vopl v1 (legacy mesh)
-
-### Layout
-- magic: 4 bytes ASCII `VOPL`
-- ver: uint8 = 1
-- numVerts: uint16
-- numIdx: uint16
-- vertices: `numVerts` × (position: 3×float32, color: uint8)
-- indices: `numIdx` × uint16
-
-This stores a greedy-meshed surface, not a grid.
+Legacy v1/v2 are no longer supported; v3 is the only standard.
 
 
 ## Palette (64 entries)
@@ -316,7 +285,7 @@ function buildVOPLv3Dense(grid){
 ## Edge cases and constraints
 - Sparse idx is 8-bit; only first 256 Morton positions are addressable in sparse mode here.
 - RLE max run is 256; split longer runs.
-- bpp must be ≤8; used values: 5 (v2), 6 (v3).
+- bpp must be ≤8; used value: 6 (v3).
 - Decoder expects exactly `plen` bytes of payload after header.
 - Decoder ignores w/h/d from the header and reconstructs 16×16×16.
 
@@ -326,4 +295,4 @@ function buildVOPLv3Dense(grid){
 - Implement 3D Morton order over 16×16×16.
 - Implement dense/sparse/rle encoders/decoders with exact field widths.
 - Optionally apply zlib to the raw encoding stream if it reduces size; set `enc|=0x80`.
-- Write/read v3 headers exactly as specified; follow v2/v1 layouts above.
+- Write/read v3 headers exactly as specified.
