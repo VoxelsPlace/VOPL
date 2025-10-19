@@ -1,4 +1,4 @@
-## VOPL File Format (v3) and VOPLPACK
+## VOPL File Format and VOPLPACK
 
 This document specifies the binary layout and behavior of `.vopl` and `.voplpack` exactly as implemented here. It covers field sizes, endianness, bit-level packing, voxel ordering (3D Morton/Z-order), encodings, compression, palette mapping, container, and runnable examples in Go and JavaScript.
 
@@ -9,7 +9,7 @@ This document specifies the binary layout and behavior of `.vopl` and `.voplpack
 - Bitstreams are LSB-first within each byte.
 
 
-## .vopl v3 (grid format)
+## .vopl (grid format)
 
 ### Header (16 bytes total, including magic)
 - magic: 4 bytes ASCII `VOPL`
@@ -58,7 +58,6 @@ The linear stream order is ascending by key `morton3D(x,y,z) = expand3(x) | (exp
 - If compressed, payload must be valid zlib.
 - Decoder reconstructs a 16×16×16 grid, ignoring w/h/d.
 
-Legacy v1/v2 are no longer supported; v3 is the only standard.
 
 
 ## Palette (64 entries)
@@ -133,7 +132,7 @@ Index 0 is transparent RGBA. 1..63 are opaque RGB unless noted.
 
 ## VOPLPACK (.voplpack)
 
-Bundles multiple `.vopl` v3 payloads with shared common header.
+Bundles multiple `.vopl` payloads with shared common header.
 
 ### File header
 - magic: 8 bytes ASCII `VOPLPACK`
@@ -161,7 +160,7 @@ No footer, no checksums.
 
 ## Go examples
 
-Dense v3 writer for a 16³ grid of palette indices (already in Morton order):
+Dense writer for a 16³ grid of palette indices (already in Morton order):
 
 ```go
 package main
@@ -169,7 +168,7 @@ import (
 	"bytes"
 	"encoding/binary"
 )
-func writeVOPLv3Dense(grid []uint8) []byte {
+func writeVOPDense(grid []uint8) []byte {
 	bpp := uint8(6)
 	w,h,d := uint8(16),uint8(16),uint8(16)
 	pal := uint16(64)
@@ -235,7 +234,7 @@ func encodeRLEV3(stream []uint8, bpp uint8) []byte {
 
 ## JavaScript examples
 
-Dense v3 writer (Morton order indices computed on the fly; no zlib):
+Dense writer (Morton order indices computed on the fly; no zlib):
 
 ```js
 function writeBitsLSB(acc, v, bits, out) {
@@ -270,7 +269,7 @@ function encodeDenseV3(grid){
   for(let j=0;j<order.length;j++) writeBitsLSB(acc, BigInt(grid[order[j]]), 6, out);
   flushLSB(acc,out); return Uint8Array.from(out);
 }
-function buildVOPLv3Dense(grid){
+function buildVOPLDense(grid){
   const payload=encodeDenseV3(grid);
   const bytes=new Uint8Array(16+payload.length);
   bytes.set([0x56,0x4F,0x50,0x4C, 3, 0, 6, 16, 16, 16, 64, 0, 0, 0, 0, 0], 0);
@@ -285,7 +284,7 @@ function buildVOPLv3Dense(grid){
 ## Edge cases and constraints
 - Sparse idx is 8-bit; only first 256 Morton positions are addressable in sparse mode here.
 - RLE max run is 256; split longer runs.
-- bpp must be ≤8; used value: 6 (v3).
+- bpp must be ≤8; used value: 6.
 - Decoder expects exactly `plen` bytes of payload after header.
 - Decoder ignores w/h/d from the header and reconstructs 16×16×16.
 
@@ -295,4 +294,4 @@ function buildVOPLv3Dense(grid){
 - Implement 3D Morton order over 16×16×16.
 - Implement dense/sparse/rle encoders/decoders with exact field widths.
 - Optionally apply zlib to the raw encoding stream if it reduces size; set `enc|=0x80`.
-- Write/read v3 headers exactly as specified.
+- Write/read headers exactly as specified.

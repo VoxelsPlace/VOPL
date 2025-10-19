@@ -29,7 +29,7 @@ func RunRLE2VOPL(rleArg, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to expand RLE: %w", err)
 	}
-	if err := vopl.SaveVoplGridV3(grid, outPath); err != nil {
+    if err := vopl.SaveVoplGrid(grid, outPath); err != nil {
 		return fmt.Errorf("failed to save VOPL: %w", err)
 	}
 

@@ -10,7 +10,7 @@ import (
 func usage() {
 	fmt.Println("Usage: vopltool <command> [args]")
 	fmt.Println("Commands:")
-	fmt.Println("  rle2vopl \"10,0,4,1,...\" output.vopl    (generate .vopl v3 with 64 colors from RLE)")
+	fmt.Println("  rle2vopl \"10,0,4,1,...\" output.vopl    (generate .vopl with 64 colors from RLE)")
 	fmt.Println("  vopl2glb input.vopl output.glb         (convert .vopl -> .glb using greedy mesh)")
 	fmt.Println("  vopl2voplpack output.voplpack input1.vopl [input2.vopl ...]   (pack multiple .vopl into a .voplpack)")
 }

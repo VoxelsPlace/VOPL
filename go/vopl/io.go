@@ -8,7 +8,7 @@ import (
     "os"
 )
 
-func SaveVoplGridV3(grid *VoxelGrid, filename string) error {
+func SaveVoplGrid(grid *VoxelGrid, filename string) error {
 	const bpp = 6 // 64 cores (0..63)
 	enc := bestEncoding(grid, bpp)
 	buf := new(bytes.Buffer)
@@ -31,7 +31,7 @@ func LoadVoplGrid(filename string) (*VoxelGrid, error) {
         return nil, err
     }
     if len(data) < 4 || string(data[:4]) != "VOPL" {
-        return nil, fmt.Errorf("formato inválido ou não é VOPL")
+        return nil, fmt.Errorf("invalid format or not VOPL")
     }
     br := bytes.NewReader(data[4:])
     var ver uint8
@@ -39,14 +39,12 @@ func LoadVoplGrid(filename string) (*VoxelGrid, error) {
         return nil, err
     }
     if ver != 3 {
-        return nil, fmt.Errorf("apenas VOPL v3 é suportado (encontrado %d)", ver)
+        return nil, fmt.Errorf("only VOPL is supported (found %d)", ver)
     }
-    return loadV3(br)
+    return load(br)
 }
 
-// v1 and v2 removed: only v3 is supported
-
-func loadV3(b *bytes.Reader) (*VoxelGrid, error) {
+func load(b *bytes.Reader) (*VoxelGrid, error) {
 	var encByte, bpp, w, h, d uint8
 	var palVer uint16
 	var plen uint32
@@ -119,12 +117,12 @@ func loadV3(b *bytes.Reader) (*VoxelGrid, error) {
 				lin = append(lin, uint8(col))
 			}
 		}
-		if len(lin) != Width*Height*Depth {
-			return nil, fmt.Errorf("RLE inválido (v3)")
+        if len(lin) != Width*Height*Depth {
+            return nil, fmt.Errorf("RLE inválido")
 		}
 		applyOrder(grid, lin)
 	default:
-		return nil, fmt.Errorf("encoding desconhecido (v3): %d", enc)
+        return nil, fmt.Errorf("encoding desconhecido: %d", enc)
 	}
 	return grid, nil
 }

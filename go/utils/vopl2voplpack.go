@@ -13,13 +13,13 @@ import (
 // It verifies common header fields across inputs and uses zlib compression.
 func CreatePack(inputFiles []string, outputFile string) error {
 	if len(inputFiles) == 0 {
-		return fmt.Errorf("nenhum arquivo .vopl informado")
+		return fmt.Errorf("no .vopl files provided")
 	}
 	type item struct {
 		name    string
 		payload []byte
 		enc     uint8
-		hdr     vopl.VOPLHeaderV3
+        hdr     vopl.VOPLHeader
 		err     error
 	}
 	items := make([]item, len(inputFiles))
@@ -35,7 +35,7 @@ func CreatePack(inputFiles []string, outputFile string) error {
 				items[i].err = err
 				return
 			}
-			hdr, payload, err := vopl.ParseVOPLHeaderV3FromBytes(b)
+            hdr, payload, err := vopl.ParseVOPLHeaderFromBytes(b)
 			if err != nil {
 				items[i].err = err
 				return
@@ -52,20 +52,20 @@ func CreatePack(inputFiles []string, outputFile string) error {
 	}
 	wg.Wait()
 	// check for errors and common fields
-	common := items[0].hdr
+    common := items[0].hdr
 	for i, it := range items {
 		if it.err != nil {
 			return it.err
 		}
-		if it.hdr.Ver != 3 {
-			return fmt.Errorf("apenas VOPL v3 suportado (%s)", inputFiles[i])
+        if it.hdr.Ver != 3 {
+            return fmt.Errorf("apenas VOPL é suportado (%s)", inputFiles[i])
 		}
 		if it.hdr.BPP != common.BPP || it.hdr.W != common.W || it.hdr.H != common.H || it.hdr.D != common.D || it.hdr.Pal != common.Pal {
-			return fmt.Errorf("parâmetros inconsistentes entre arquivos (%s)", inputFiles[i])
+			return fmt.Errorf("inconsistent parameters between files (%s)", inputFiles[i])
 		}
 	}
 
-	pack := &vopl.Pack{Header: vopl.VOPLHeaderV3{Ver: 3, BPP: common.BPP, W: common.W, H: common.H, D: common.D, Pal: common.Pal}}
+    pack := &vopl.Pack{Header: vopl.VOPLHeader{Ver: 3, BPP: common.BPP, W: common.W, H: common.H, D: common.D, Pal: common.Pal}}
 	pack.Entries = make([]vopl.PackEntry, len(items))
 	for i, it := range items {
 		pack.Entries[i] = vopl.PackEntry{Name: it.name, Enc: it.enc, Payload: it.payload}

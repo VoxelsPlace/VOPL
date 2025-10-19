@@ -1,12 +1,12 @@
 package vopl
 
-// VOPLHeaderV3 represents the fixed fields in a VOPL v3 header.
+// VOPLHeader represents the fixed fields in a VOPL header.
 // Kept in its own file for clarity and reuse across pack/unpack helpers.
 // Note: The per-file 'encoding' byte is not part of this common header struct
 // because it varies per entry and is stored alongside each payload when packing.
-// Ver must be 3 for VOPL v3.
+// Ver must be 3 for VOPL.
 
-type VOPLHeaderV3 struct {
+type VOPLHeader struct {
 	Ver  uint8
 	BPP  uint8
 	W    uint8

@@ -60,7 +60,7 @@ func RunVOPL2GLB(inPath, outPath string) error {
 	}
 
 	doc := gltf.NewDocument()
-	doc.Asset.Generator = "VOPL v3 -> GLB"
+	doc.Asset.Generator = "VOPL -> GLB"
 
 	posAccessor := modeler.WritePosition(doc, positions)
 	normalAccessor := modeler.WriteNormal(doc, normals)

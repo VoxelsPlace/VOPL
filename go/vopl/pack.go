@@ -8,10 +8,10 @@ import (
 	"io"
 )
 
-// ParseVOPLHeaderV3FromBytes parses a VOPL v3 header from the given full file bytes,
+// ParseVOPLHeaderFromBytes parses a VOPL header from the given full file bytes,
 // returning the header and the payload slice.
-func ParseVOPLHeaderV3FromBytes(data []byte) (VOPLHeaderV3, []byte, error) {
-	var hdr VOPLHeaderV3
+func ParseVOPLHeaderFromBytes(data []byte) (VOPLHeader, []byte, error) {
+    var hdr VOPLHeader
 	if len(data) < 16 || string(data[:4]) != "VOPL" {
 		return hdr, nil, fmt.Errorf("não é um VOPL válido")
 	}
@@ -20,9 +20,9 @@ func ParseVOPLHeaderV3FromBytes(data []byte) (VOPLHeaderV3, []byte, error) {
 	if err := binary.Read(r, binary.LittleEndian, &ver); err != nil {
 		return hdr, nil, err
 	}
-	if ver != 3 {
-		return hdr, nil, fmt.Errorf("VOPL versão não suportada: %d", ver)
-	}
+    if ver != 3 {
+        return hdr, nil, fmt.Errorf("VOPL versão não suportada: %d", ver)
+    }
 	var enc uint8 // we read and discard here (per-file, not common)
 	if err := binary.Read(r, binary.LittleEndian, &enc); err != nil {
 		return hdr, nil, err
@@ -48,14 +48,14 @@ func ParseVOPLHeaderV3FromBytes(data []byte) (VOPLHeaderV3, []byte, error) {
 	if uint32(len(data)-16) != hdr.PLen {
 		return hdr, nil, fmt.Errorf("payload length inválido (esperado %d)", hdr.PLen)
 	}
-	hdr.Ver = 3
+    hdr.Ver = 3
 	payload := data[16:]
 	return hdr, payload, nil
 }
 
 // BuildVOPLFromHeaderAndPayload reconstructs a full .vopl file from the given
 // common header fields and the per-file encoding and payload.
-func BuildVOPLFromHeaderAndPayload(h VOPLHeaderV3, enc uint8, payload []byte) []byte {
+func BuildVOPLFromHeaderAndPayload(h VOPLHeader, enc uint8, payload []byte) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("VOPL")
 	_ = binary.Write(&buf, binary.LittleEndian, uint8(h.Ver))
@@ -92,15 +92,15 @@ type PackEntry struct {
 
 // Pack holds the common header information and entries.
 type Pack struct {
-	Header  VOPLHeaderV3 // common across all entries
+    Header  VOPLHeader // common across all entries
 	Entries []PackEntry
 }
 
 // Marshal encodes the pack into bytes, using the specified compression for the content section.
 func (p *Pack) Marshal(comp PackCompression) ([]byte, error) {
-	if p.Header.Ver != 3 {
-		return nil, fmt.Errorf("apenas VOPL v3 é suportado no pack")
-	}
+    if p.Header.Ver != 3 {
+        return nil, fmt.Errorf("apenas VOPL é suportado no pack")
+    }
 	// Build uncompressed content: common fields + N entries [nameLen|name|enc|plen|payload]
 	var content bytes.Buffer
 	_ = binary.Write(&content, binary.LittleEndian, uint8(p.Header.Ver))
@@ -180,7 +180,7 @@ func UnmarshalPack(data []byte) (*Pack, PackCompression, error) {
 	}
 
 	r := bytes.NewReader(contentBytes)
-	var hdr VOPLHeaderV3
+    var hdr VOPLHeader
 	if err := binary.Read(r, binary.LittleEndian, &hdr.Ver); err != nil {
 		return nil, 0, err
 	}
