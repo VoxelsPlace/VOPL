@@ -3,7 +3,7 @@ package utils
 import (
 	"math"
 
-	"vopltool/vopl"
+	"github.com/voxelsplace/vopl/go/vopl"
 
 	"github.com/qmuntal/gltf"
 	"github.com/qmuntal/gltf/modeler"

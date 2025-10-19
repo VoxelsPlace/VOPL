@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"vopltool/vopl"
+	"github.com/voxelsplace/vopl/go/vopl"
 )
 
 // CreatePack reads .vopl files and writes a .voplpack to outputFile.

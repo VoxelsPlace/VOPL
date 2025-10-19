@@ -1,4 +1,4 @@
-module vopltool
+module github.com/voxelsplace/vopl/go
 
 go 1.22
 
