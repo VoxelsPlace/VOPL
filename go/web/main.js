@@ -1,8 +1,11 @@
 import { renderer, camera, animate, onResize } from './scene.js';
 import { setTool } from './state.js';
-import { populateColorPalette } from './ui.js';
+import { populateColorPalette, populateExampleButtons } from './ui.js';
 import { onPointerMove, onPointerDown } from './input.js';
 import { clearAllVoxels, randomNoise, fillChunk, genRainbow, genStripes, genSphere, generateCommand } from './patterns_export.js';
+import { loadExamples } from './examples_loader.js';
+import { applyLayers } from './layer_reader.js';
+import { getExampleById } from './examples_loader.js';
 
 window.addEventListener('resize', onResize);
 window.addEventListener('pointermove', (e) => onPointerMove(e, renderer, camera));
@@ -32,6 +35,16 @@ document.getElementById('copyCmd').addEventListener('click', async () => {
   }
 });
 
+await loadExamples();
+const examplesSection = document.querySelector('#controls .ui-group:nth-of-type(2) .generator-grid');
+const parent = examplesSection.parentElement;
+const examplesButtons = populateExampleButtons((id) => {
+  const ex = getExampleById(id);
+  if (!ex) return;
+  clearAllVoxels();
+  applyLayers(ex.layers);
+});
+parent.insertBefore(examplesButtons, examplesSection.nextSibling);
 populateColorPalette();
 document.body.dataset.tool = 'paint';
 setTool('paint');

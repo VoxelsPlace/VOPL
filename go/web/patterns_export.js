@@ -1,6 +1,8 @@
 import { HEIGHT, WIDTH, DEPTH, usableColors } from './palette.js';
 import { voxelGrid } from './state.js';
 import { updateVoxel } from './input.js';
+import { applyLayers } from './layer_reader.js';
+import { getExampleById } from './examples_loader.js';
 
 export function clearAllVoxels() {
   for (let y = 0; y < HEIGHT; y++) {
@@ -143,5 +145,12 @@ export function generateCommand() {
   const cmd = `go run . rle2vopl "${rle.join(',')}" "${outName}"`;
   document.getElementById('rleOutput').value = cmd;
   return cmd;
+}
+
+export function genSquare() {
+  const ex = getExampleById('house_square_black');
+  if (!ex) return;
+  clearAllVoxels();
+  applyLayers(ex.layers);
 }
 
