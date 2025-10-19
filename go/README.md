@@ -17,7 +17,7 @@ This document specifies the binary layout and behavior of `.vopl` and `.voplpack
 - enc: uint8
   - bit7 (0x80): 1 if payload is zlib-compressed; 0 otherwise
   - bits[6:0]: encoding id: 0=dense, 1=sparse, 2=rle
-- bpp: uint8 (here: 6 for 64-color palette 0..63)
+- bpp: uint8 (adaptive; minimal bits to represent max palette index present, 1..8)
 - w: uint8 (encoded, decoder assumes 16)
 - h: uint8 (encoded, decoder assumes 16)
 - d: uint8 (encoded, decoder assumes 16)
@@ -31,18 +31,29 @@ Values are emitted in 3D Morton/Z-order (see Ordering).
 
 - Encoding 0: dense
   - Sequence of N values, each `bpp` bits, tightly bit-packed.
-- Encoding 1: sparse
+- Encoding 1: sparse (legacy)
   - count: 16 bits (# of nonzero entries)
   - Repeated `count` times:
     - idx: 8 bits (Morton position index, 0..255)
     - value: `bpp` bits
-  - Note: idx is 8-bit. Only first 256 Morton positions are addressable in sparse mode as implemented.
+  - Note: idx is 8-bit. Only first 256 Morton positions are addressable in this legacy sparse mode.
 - Encoding 2: rle
   - Repeat until N values reconstructed:
     - run_minus_1: 8 bits (actual run length = run_minus_1+1, range 1..256)
     - value: `bpp` bits
 
-If `enc & 0x80 != 0`, the raw stream above is zlib-compressed; decompress before decoding.
+- Encoding 3: sparse2
+  - 4096-bit occupancy bitmap (512 bytes), LSB-first within each byte, Morton order.
+  - Followed by bit-packed stream of all nonzero values, each `bpp` bits, in Morton order.
+
+- Encoding 4: rle0 (zero-biased RLE)
+  - Sequence of blocks until N values reconstructed:
+    - flag: 1 byte (0 = literal block, 1 = zero-run block)
+    - len: unsigned varint (LEB128-style, 7-bit groups)
+    - if literal: then `len` values follow, bit-packed at `bpp` bits each
+    - if zero-run: no payload for the block; it expands to `len` zeros
+
+If `enc & 0x80 != 0`, the raw stream above is zlib-compressed (BestCompression); decompress before decoding.
 
 ### Ordering (3D Morton/Z-order)
 Grid index access is `grid[y][x][z]` with 0-based `x∈[0,16)`, `y∈[0,16)`, `z∈[0,16)`.

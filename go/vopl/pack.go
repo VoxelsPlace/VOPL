@@ -128,9 +128,9 @@ func (p *Pack) Marshal(comp PackCompression) ([]byte, error) {
 	switch comp {
 	case PackCompNone:
 		finalContent = content.Bytes()
-	case PackCompZlib:
-		var buf bytes.Buffer
-		zw := zlib.NewWriter(&buf)
+    case PackCompZlib:
+        var buf bytes.Buffer
+        zw, _ := zlib.NewWriterLevel(&buf, zlib.BestCompression)
 		if _, err := zw.Write(content.Bytes()); err != nil {
 			return nil, err
 		}

@@ -53,3 +53,40 @@ func (r *bitReader) readBits(bits uint8) (uint64, error) {
 	r.n -= bits
 	return v, nil
 }
+
+func writeUVarint(dst []byte, x uint32) []byte {
+    v := x
+    for v >= 0x80 {
+        dst = append(dst, byte(v)|0x80)
+        v >>= 7
+    }
+    dst = append(dst, byte(v))
+    return dst
+}
+
+func readUVarint(src []byte, pos *int) (uint32, error) {
+    var x uint32
+    var s uint32
+    i := *pos
+    for {
+        if i >= len(src) {
+            return 0, io.ErrUnexpectedEOF
+        }
+        b := src[i]
+        i++
+        if b < 0x80 {
+            if s >= 32 {
+                return 0, io.ErrUnexpectedEOF
+            }
+            x |= uint32(b) << s
+            break
+        }
+        x |= uint32(b&0x7F) << s
+        s += 7
+        if s > 28 {
+            return 0, io.ErrUnexpectedEOF
+        }
+    }
+    *pos = i
+    return x, nil
+}

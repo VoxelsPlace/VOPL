@@ -9,8 +9,20 @@ import (
 )
 
 func SaveVoplGrid(grid *VoxelGrid, filename string) error {
-	const bpp = 6 // 64 cores (0..63)
-	enc := bestEncoding(grid, bpp)
+    // adaptive bpp based on max palette index present
+    maxv := uint8(0)
+    for y := 0; y < Height; y++ {
+        for x := 0; x < Width; x++ {
+            for z := 0; z < Depth; z++ {
+                if grid[y][x][z] > maxv { maxv = grid[y][x][z] }
+            }
+        }
+    }
+    bpp := uint8(1)
+    for (1<<bpp) <= int(maxv) { bpp++ }
+    if bpp < 1 { bpp = 1 }
+    if bpp > 8 { bpp = 8 }
+    enc := bestEncoding(grid, bpp)
 	buf := new(bytes.Buffer)
 	buf.WriteString("VOPL")
 	_ = binary.Write(buf, binary.LittleEndian, uint8(3))
@@ -121,6 +133,77 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
             return nil, fmt.Errorf("RLE inválido")
 		}
 		applyOrder(grid, lin)
+    case encSparse2:
+        if len(payload) < 512 {
+            return nil, fmt.Errorf("payload insuficiente para Sparse2")
+        }
+        bitmap := payload[:512]
+        vals := payload[512:]
+        br := newBitReader(vals)
+        lin := make([]uint8, 0, Width*Height*Depth)
+        total := Width * Height * Depth
+        consumed := 0
+        for i := 0; i < total; i++ {
+            bit := (bitmap[i>>3] >> (uint(i) & 7)) & 1
+            if bit == 0 {
+                lin = append(lin, 0)
+                continue
+            }
+            v, err := br.readBits(bpp)
+            if err != nil {
+                return nil, err
+            }
+            lin = append(lin, uint8(v))
+            consumed++
+        }
+        applyOrder(grid, lin)
+    case encRLE0:
+        // parse alternating zero-run and literal blocks with varint lengths
+        // header is sequence of [flag byte][uvarint length] ... then for literal blocks, values bitstream follows
+        header := payload
+        // scan header to find start of values stream
+        pos := 0
+        blocks := make([]struct{ zero bool; ln uint32 }, 0, 64)
+        total := 0
+        for pos < len(header) {
+            flag := header[pos]
+            pos++
+            ln, err := readUVarint(header, &pos)
+            if err != nil {
+                return nil, err
+            }
+            blocks = append(blocks, struct{ zero bool; ln uint32 }{zero: flag != 0, ln: ln})
+            if flag == 0 {
+                // literal block contributes ln values to the value bitstream; accounted later
+            }
+            total += int(ln)
+            if total >= Width*Height*Depth {
+                break
+            }
+        }
+        if total != Width*Height*Depth {
+            return nil, fmt.Errorf("RLE0 total não fecha chunk (%d)", total)
+        }
+        // remaining bytes after header parsing are the bit-packed literal values
+        values := header[pos:]
+        br := newBitReader(values)
+        lin := make([]uint8, 0, Width*Height*Depth)
+        for _, blk := range blocks {
+            if blk.zero {
+                for j := uint32(0); j < blk.ln; j++ {
+                    lin = append(lin, 0)
+                }
+                continue
+            }
+            for j := uint32(0); j < blk.ln; j++ {
+                v, err := br.readBits(bpp)
+                if err != nil {
+                    return nil, err
+                }
+                lin = append(lin, uint8(v))
+            }
+        }
+        applyOrder(grid, lin)
 	default:
         return nil, fmt.Errorf("encoding desconhecido: %d", enc)
 	}
