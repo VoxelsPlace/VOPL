@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VOPL Viewer (Three.js + Go WASM)</title>
+    <style>
+      :root { color-scheme: dark light; }
+      body { margin: 0; font-family: system-ui, sans-serif; display: flex; height: 100vh; }
+      #sidebar { width: 320px; max-width: 40vw; border-right: 1px solid #3336; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+      #viewer { flex: 1; position: relative; background: #111; }
+      #dropzone { border: 2px dashed #888; border-radius: 8px; padding: 16px; text-align: center; color: #bbb; }
+      #dropzone.dragover { border-color: #3af; color: #3af; background: #3af1; }
+      #status { font-size: 12px; color: #8a8; min-height: 1.5em; }
+      #toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      label { font-size: 13px; opacity: 0.9; }
+      select, input[type="file"], button { width: 100%; }
+      canvas { display: block; }
+      footer { opacity: 0.8; font-size: 12px; margin-top: auto; }
+    </style>
+    <script src="./wasm_exec.js"></script>
+  </head>
+  <body>
+    <aside id="sidebar">
+      <h2>VOPL Viewer</h2>
+      <div id="dropzone">
+        Drop .vopl or .voplpack files here
+        <br/>— or —
+        <br/><br/>
+        <input id="fileInput" type="file" accept=".vopl,.voplpack" />
+      </div>
+
+      <div id="toolbar">
+        <label for="packSelect">Pack entry</label>
+        <select id="packSelect" disabled title="Select an entry from .voplpack"></select>
+        <button id="resetViewBtn" type="button">Reset View</button>
+      </div>
+
+      <div id="status"></div>
+      <footer>
+        <div>• .vopl is converted to .glb in-memory with WASM</div>
+        <div>• .voplpack entries can be selected and viewed</div>
+      </footer>
+    </aside>
+    <main id="viewer"></main>
+
+    <script type="module">
+      import * as THREE from 'https://esm.sh/three@0.180.0';
+      import { OrbitControls } from 'https://esm.sh/three@0.180.0/examples/jsm/controls/OrbitControls.js';
+      import { GLTFLoader } from 'https://esm.sh/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
+      import { initVoplWasm } from './browser.js';
+
+      const statusEl = document.getElementById('status');
+      const viewerEl = document.getElementById('viewer');
+      const packSelect = document.getElementById('packSelect');
+      const fileInput = document.getElementById('fileInput');
+      const dropzone = document.getElementById('dropzone');
+      const resetViewBtn = document.getElementById('resetViewBtn');
+
+      // Initialize wasm
+      let api;
+      try {
+        api = await initVoplWasm('./vopl.wasm');
+        setStatus('WASM ready. Load a .vopl or .voplpack.');
+      } catch (e) {
+        setStatus('Failed to initialize WASM: ' + e.message);
+        throw e;
+      }
+
+      // Three.js scene setup
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x111111);
+      const camera = new THREE.PerspectiveCamera(60, 2, 0.01, 1000);
+      camera.position.set(2.5, 2.0, 2.5);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      viewerEl.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.8);
+      scene.add(hemi);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+      dir.position.set(5, 10, 7);
+      scene.add(dir);
+
+      const contentGroup = new THREE.Group();
+      scene.add(contentGroup);
+
+      const loader = new GLTFLoader();
+
+      function resizeRenderer() {
+        const w = viewerEl.clientWidth;
+        const h = viewerEl.clientHeight;
+        if (w === 0 || h === 0) return;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      window.addEventListener('resize', resizeRenderer);
+      resizeRenderer();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      function setStatus(msg) {
+        statusEl.textContent = msg;
+      }
+
+      function clearContent() {
+        for (let i = contentGroup.children.length - 1; i >= 0; i--) {
+          const child = contentGroup.children[i];
+          contentGroup.remove(child);
+          child.traverse?.((o) => {
+            if (o.geometry) o.geometry.dispose?.();
+            if (o.material) {
+              if (Array.isArray(o.material)) o.material.forEach(m => m.dispose?.());
+              else o.material.dispose?.();
+            }
+            if (o.texture) o.texture.dispose?.();
+          });
+        }
+      }
+
+      function fitViewToObject(obj) {
+        const box = new THREE.Box3().setFromObject(obj);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const dist = maxDim * 1.8;
+        camera.position.copy(center).add(new THREE.Vector3(dist, dist, dist));
+        camera.near = Math.max(0.01, maxDim / 100);
+        camera.far = Math.max(100, dist * 10);
+        camera.updateProjectionMatrix();
+        controls.target.copy(center);
+        controls.update();
+      }
+
+      async function renderGLBFromBytes(glbBytes) {
+        return new Promise((resolve, reject) => {
+          try {
+            const blob = new Blob([glbBytes], { type: 'model/gltf-binary' });
+            const url = URL.createObjectURL(blob);
+            loader.load(url, (gltf) => {
+              URL.revokeObjectURL(url);
+              clearContent();
+              contentGroup.add(gltf.scene);
+              fitViewToObject(gltf.scene);
+              setStatus('Model loaded.');
+              resolve();
+            }, undefined, (err) => {
+              URL.revokeObjectURL(url);
+              reject(err);
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+
+      async function renderVOPLBytes(voplBytes) {
+        setStatus('Converting .vopl -> .glb ...');
+        const out = api.vopl2glb(voplBytes);
+        if (typeof out === 'string') {
+          throw new Error(out);
+        }
+        await renderGLBFromBytes(out);
+      }
+
+      // Handle .vopl file
+      async function handleVOPLFile(file) {
+        const buf = new Uint8Array(await file.arrayBuffer());
+        await renderVOPLBytes(buf);
+      }
+
+      // Handle .voplpack file
+      async function handleVOPLPACKFile(file) {
+        setStatus('Reading .voplpack ...');
+        const buf = new Uint8Array(await file.arrayBuffer());
+        const filesObj = api.unpackVoplpack(buf);
+        if (typeof filesObj === 'string') {
+          throw new Error(filesObj);
+        }
+        // Populate select
+        packSelect.innerHTML = '';
+        const names = Object.keys(filesObj).sort();
+        for (const n of names) {
+          const opt = document.createElement('option');
+          opt.value = n;
+          opt.textContent = n;
+          packSelect.appendChild(opt);
+        }
+        packSelect.disabled = names.length === 0;
+        setStatus(names.length ? `Pack loaded (${names.length} entries). Select one to view.` : 'Empty pack.');
+
+        if (names.length) {
+          // Auto-render first
+          await renderVOPLBytes(filesObj[names[0]]);
+        }
+
+        packSelect.onchange = async () => {
+          const name = packSelect.value;
+          if (name && filesObj[name]) {
+            await renderVOPLBytes(filesObj[name]);
+          }
+        };
+      }
+
+      function handleFiles(files) {
+        if (!files || !files.length) return;
+        const file = files[0];
+        const name = file.name.toLowerCase();
+        if (name.endsWith('.vopl')) {
+          handleVOPLFile(file).catch(err => setStatus('Error: ' + err.message));
+        } else if (name.endsWith('.voplpack')) {
+          handleVOPLPACKFile(file).catch(err => setStatus('Error: ' + err.message));
+        } else {
+          setStatus('Unsupported file type. Please select a .vopl or .voplpack');
+        }
+      }
+
+      // File input
+      fileInput.addEventListener('change', (e) => {
+        handleFiles(fileInput.files);
+        fileInput.value = '';
+      });
+
+      // Drag & Drop
+      ;['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover');
+      }));
+      ;['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover');
+      }));
+      dropzone.addEventListener('drop', (e) => {
+        handleFiles(e.dataTransfer.files);
+      });
+
+      // Reset view
+      resetViewBtn.addEventListener('click', () => {
+        controls.reset();
+        camera.position.set(2.5, 2.0, 2.5);
+        camera.lookAt(0, 0, 0);
+      });
+    </script>
+  </body>
+  </html>
