@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced 3D Voxel Editor</title>
+  <style>
+    :root {
+      --bg-color: #f5f5f5;
+      --panel-bg: #ffffff;
+      --text-color: #212121;
+      --text-color-light: #757575;
+      --border-color: #e0e0e0;
+      --accent-color: #2979ff;
+      --hover-color: #f1f3f4;
+      --danger-color: #d32f2f;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--text-color);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    canvas { display: block; }
+
+    .ui-panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      bottom: 15px;
+      width: 320px;
+      background: var(--panel-bg);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+    
+    .ui-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .ui-group:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .ui-group h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    .tool-selection {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    #colorPalette {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      box-sizing: border-box;
+      transition: all 0.15s ease-out;
+      position: relative;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.15);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .color-swatch.selected {
+      border-color: var(--accent-color);
+      transform: scale(1.1);
+    }
+    
+    .color-swatch[data-color="0"] {
+        background-image: 
+            linear-gradient(45deg, #ccc 25%, transparent 25%), 
+            linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+            linear-gradient(45deg, transparent 75%, #ccc 75%), 
+            linear-gradient(-45deg, transparent 75%, #ccc 75%);
+        background-size: 10px 10px;
+        background-color: #f0f0f0;
+    }
+
+    button, .button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s, box-shadow 0.2s;
+      flex-grow: 1;
+    }
+    button:hover, .button:hover {
+      background-color: var(--hover-color);
+    }
+    button:active, .button:active {
+        background-color: #e0e0e0;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    button.active {
+        background-color: var(--accent-color);
+        color: white;
+        border-color: var(--accent-color);
+    }
+    button.active:hover {
+        background-color: #216ce0;
+    }
+    button svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .generator-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input[type="text"] {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="text"]:focus {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 2px rgba(41, 121, 255, 0.2);
+    }
+
+    textarea#rleOutput {
+      min-height: 80px;
+      background: #fafafa;
+      padding: 8px;
+      overflow-y: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 13px;
+      resize: vertical;
+    }
+    
+    #tip {
+        font-size: 12px;
+        opacity: 0.7;
+        text-align: center;
+        margin-top: auto; /* Pushes to the bottom */
+        padding-top: 16px;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div id="controls" class="ui-panel">
+    
+    <div class="ui-group">
+      <h3>Tools</h3>
+      <div class="tool-selection">
+          <button id="paintTool" class="active">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17.586 2.414a2 2 0 0 1 2.828 0L22 4l-1.414 1.414a7.05 7.05 0 0 0-1.07-.632l-1.932-1.932.632-1.07A2.001 2.001 0 0 1 17.586 2.414zM12 14l-2 2h4l-2-2zM4 22h16v-2H4v2zM5.586 8.414a2 2 0 0 0 0 2.828L7 12.657V20h10v-7.343l1.414-1.414a2 2 0 0 0 0-2.828L12 2.172 5.586 8.414z"/></svg>
+            Paint
+          </button>
+          <button id="eraseTool">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 9h-4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1zM5 21h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3l-1.764-1.764A1 1 0 0 0 13.586 4H10.414a1 1 0 0 0-.707.293L8 6H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2zM5 8h14v11H5V8z"/></svg>
+            Erase
+          </button>
+      </div>
+      <div id="colorPalette"></div>
+    </div>
+    
+    <div class="ui-group">
+        <h3>Generate</h3>
+        <div class="generator-grid">
+            <button id="fillChunk">Fill</button>
+            <button id="randomNoise">Noise</button>
+            <button id="genRainbow">Rainbow</button>
+            <button id="genStripes">Stripes</button>
+            <button id="genSphere">Sphere</button>
+            <button id="clearChunk" style="grid-column: 1 / -1; color: var(--danger-color); border-color: var(--danger-color);">Clear All</button>
+        </div>
+    </div>
+    
+    <div class="ui-group">
+      <h3>Export</h3>
+      <div class="input-row">
+        <input id="outputName" value="output1.vopl" type="text" />
+      </div>
+      <textarea id="rleOutput" readonly>Click "Generate CLI" to create the command.</textarea>
+      <div class="input-row">
+        <button id="exportRLE">Generate CLI</button>
+        <button id="copyCmd">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2H8C4.691 2 2 4.691 2 8v12a1 1 0 0 0 1 1h12c3.309 0 6-2.691 6-6V8c0-3.309-2.691-6-6-6zm4 13c0 2.206-1.794 4-4 4H4V8c0-2.206 1.794-4 4-4h8c2.206 0 4 1.794 4 4v7z"/><path d="M16.5 6H11a.5.5 0 0 0 0 1h5.5a.5.5 0 0 0 0-1zM14.5 9H11a.5.5 0 0 0 0 1h3.5a.5.5 0 0 0 0-1z"/></svg>
+            Copy
+        </button>
+      </div>
+    </div>
+    
+    <div id="tip">Tip: Right-click also erases</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
