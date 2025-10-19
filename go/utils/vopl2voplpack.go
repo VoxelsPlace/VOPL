@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/voxelsplace/vopl/go/vopl"
 )
@@ -19,7 +20,7 @@ func CreatePack(inputFiles []string, outputFile string) error {
 		name    string
 		payload []byte
 		enc     uint8
-        hdr     vopl.VOPLHeader
+		hdr     vopl.VOPLHeader
 		err     error
 	}
 	items := make([]item, len(inputFiles))
@@ -35,7 +36,7 @@ func CreatePack(inputFiles []string, outputFile string) error {
 				items[i].err = err
 				return
 			}
-            hdr, payload, err := vopl.ParseVOPLHeaderFromBytes(b)
+			hdr, payload, err := vopl.ParseVOPLHeaderFromBytes(b)
 			if err != nil {
 				items[i].err = err
 				return
@@ -52,28 +53,31 @@ func CreatePack(inputFiles []string, outputFile string) error {
 	}
 	wg.Wait()
 	// check for errors and common fields
-    common := items[0].hdr
+	common := items[0].hdr
 	for i, it := range items {
 		if it.err != nil {
 			return it.err
 		}
-        if it.hdr.Ver != 3 {
-            return fmt.Errorf("apenas VOPL é suportado (%s)", inputFiles[i])
+		if it.hdr.Ver != 3 {
+			return fmt.Errorf("apenas VOPL é suportado (%s)", inputFiles[i])
 		}
 		if it.hdr.BPP != common.BPP || it.hdr.W != common.W || it.hdr.H != common.H || it.hdr.D != common.D || it.hdr.Pal != common.Pal {
 			return fmt.Errorf("inconsistent parameters between files (%s)", inputFiles[i])
 		}
 	}
 
-    pack := &vopl.Pack{Header: vopl.VOPLHeader{Ver: 3, BPP: common.BPP, W: common.W, H: common.H, D: common.D, Pal: common.Pal}}
+	pack := &vopl.Pack{Header: vopl.VOPLHeader{Ver: 3, BPP: common.BPP, W: common.W, H: common.H, D: common.D, Pal: common.Pal}}
 	pack.Entries = make([]vopl.PackEntry, len(items))
 	for i, it := range items {
 		pack.Entries[i] = vopl.PackEntry{Name: it.name, Enc: it.enc, Payload: it.payload}
 	}
+	start := time.Now()
 	data, err := pack.Marshal(vopl.PackCompZlib)
 	if err != nil {
 		return err
 	}
+	dur := time.Since(start)
+	fmt.Printf("Compressão (vopl2voplpack) levou %d ms\n", dur.Milliseconds())
 	return os.WriteFile(outputFile, data, 0o644)
 }
 

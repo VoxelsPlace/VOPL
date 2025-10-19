@@ -119,6 +119,48 @@ export function genSphere() {
   }
 }
 
+// Generates exactly 3 layers, each containing a 2x2 contour (a 2x2 square),
+// using random colors for each layer. All other voxels are cleared.
+export function gen2x2Contour3Layers() {
+  clearAllVoxels();
+  // We interpret "2x2 width height" as a border thickness of 2 voxels on a large square,
+  // leaving a 1-voxel margin around the edges (to match the provided RLE shape),
+  // with ONLY 2 blocks height (two contiguous layers). Colors are noise-based per voxel.
+  const thickness = 2;
+  const margin = 1;
+  const x0 = margin;
+  const x1 = Math.max(margin, WIDTH - 1 - margin); // inclusive
+  const z0 = margin;
+  const z1 = Math.max(margin, DEPTH - 1 - margin); // inclusive
+
+  // Ensure we have at least room for thickness on both sides
+  if (x1 - x0 + 1 < thickness * 2 || z1 - z0 + 1 < thickness * 2) return;
+
+  // Use exactly the bottom two layers when available: y=0 and y=1
+  const yLayers = HEIGHT >= 2 ? [0, 1] : [0];
+
+  // Seed and scale for coherent noise
+  const seed = Math.random() * 10000;
+  const scale = 0.35;
+
+  for (const y of yLayers) {
+    for (let z = z0; z <= z1; z++) {
+      for (let x = x0; x <= x1; x++) {
+        const onLeft = x - x0 < thickness;
+        const onRight = x1 - x < thickness;
+        const onTop = z - z0 < thickness;
+        const onBottom = z1 - z < thickness;
+        const onBorder = onLeft || onRight || onTop || onBottom;
+        if (!onBorder) continue;
+        const n = fbm3(x * scale, y * scale, z * scale, seed, 2);
+        const idx = Math.floor(n * usableColors.length) % usableColors.length;
+        const color = usableColors[idx];
+        updateVoxel(x, y, z, color);
+      }
+    }
+  }
+}
+
 export function buildRLE() {
   const rle = [];
   let count = 0, prev = -1;

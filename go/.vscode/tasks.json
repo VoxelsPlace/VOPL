@@ -18,6 +18,24 @@
 				"$go"
 			],
 			"group": "build"
+		},
+		{
+			"label": "go build",
+			"type": "shell",
+			"command": "go build ./...",
+			"group": "build"
+		},
+		{
+			"label": "go build",
+			"type": "shell",
+			"command": "go build ./...",
+			"group": "build"
+		},
+		{
+			"label": "go build",
+			"type": "shell",
+			"command": "go build ./...",
+			"group": "build"
 		}
 	]
 }

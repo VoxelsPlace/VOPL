@@ -3,50 +3,32 @@
 This document specifies the binary layout and behavior of `.vopl` and `.voplpack` exactly as implemented here. It covers field sizes, endianness, bit-level packing, voxel ordering (3D Morton/Z-order), encodings, compression, palette mapping, container, and runnable examples in Go and JavaScript.
 
 ### Scope
-- All multi-byte integers are little-endian.
-- Voxel value = palette index. 0 = empty/transparent; nonzero = solid.
-- The implementation uses fixed chunk size `Width=16`, `Height=16`, `Depth=16`. The decoder assumes 16³ regardless of header values.
-- Bitstreams are LSB-first within each byte.
 
 
 ## .vopl (grid format)
 
 ### Header (16 bytes total, including magic)
-- magic: 4 bytes ASCII `VOPL`
-- ver: uint8 = 3
-- enc: uint8
   - bit7 (0x80): 1 if payload is zlib-compressed; 0 otherwise
   - bits[6:0]: encoding id: 0=dense, 1=sparse, 2=rle
-- bpp: uint8 (adaptive; minimal bits to represent max palette index present, 1..8)
-- w: uint8 (encoded, decoder assumes 16)
-- h: uint8 (encoded, decoder assumes 16)
-- d: uint8 (encoded, decoder assumes 16)
-- pal: uint16 (here: 64)
-- plen: uint32 (payload length in bytes)
 
 Immediately after the 16-byte header, `plen` bytes of payload follow.
 
 ### Payload encodings (N=16*16*16=4096)
 Values are emitted in 3D Morton/Z-order (see Ordering).
 
-- Encoding 0: dense
   - Sequence of N values, each `bpp` bits, tightly bit-packed.
-- Encoding 1: sparse (legacy)
   - count: 16 bits (# of nonzero entries)
   - Repeated `count` times:
     - idx: 8 bits (Morton position index, 0..255)
     - value: `bpp` bits
   - Note: idx is 8-bit. Only first 256 Morton positions are addressable in this legacy sparse mode.
-- Encoding 2: rle
   - Repeat until N values reconstructed:
     - run_minus_1: 8 bits (actual run length = run_minus_1+1, range 1..256)
     - value: `bpp` bits
 
-- Encoding 3: sparse2
   - 4096-bit occupancy bitmap (512 bytes), LSB-first within each byte, Morton order.
   - Followed by bit-packed stream of all nonzero values, each `bpp` bits, in Morton order.
 
-- Encoding 4: rle0 (zero-biased RLE)
   - Sequence of blocks until N values reconstructed:
     - flag: 1 byte (0 = literal block, 1 = zero-run block)
     - len: unsigned varint (LEB128-style, 7-bit groups)
@@ -60,14 +42,8 @@ Grid index access is `grid[y][x][z]` with 0-based `x∈[0,16)`, `y∈[0,16)`, `z
 The linear stream order is ascending by key `morton3D(x,y,z) = expand3(x) | (expand3(y)<<1) | (expand3(z)<<2)` where `expand3` spreads the lower 8 bits of a value into every third bit position.
 
 ### Bit packing (LSB-first)
-- Writer: OR low `bits` of value into an accumulator shifted by current count; emit bytes from the low 8 bits as soon as available; flush residual low bits as a final byte.
-- Reader: Refill by OR-ing next byte shifted by current count; take low `bits`; shift right by `bits`.
 
 ### Validation
-- Magic must be `VOPL`, ver must be 3.
-- `plen` must equal remaining file length after header.
-- If compressed, payload must be valid zlib.
-- Decoder reconstructs a 16×16×16 grid, ignoring w/h/d.
 
 
 
@@ -75,70 +51,6 @@ The linear stream order is ascending by key `morton3D(x,y,z) = expand3(x) | (exp
 
 Index 0 is transparent RGBA. 1..63 are opaque RGB unless noted.
 
-- 0: #00000000
-- 1: #000000
-- 2: #3C3C3C
-- 3: #787878
-- 4: #D2D2D2
-- 5: #FFFFFF
-- 6: #600018
-- 7: #ED1C24
-- 8: #FF7F27
-- 9: #F6AA09
-- 10: #F9DD3B
-- 11: #FFFABC
-- 12: #0EB968
-- 13: #13E67B
-- 14: #87FF5E
-- 15: #0C816E
-- 16: #10AEA6
-- 17: #13E1BE
-- 18: #28509E
-- 19: #4093E4
-- 20: #60F7F2
-- 21: #6B50F6
-- 22: #99B1FB
-- 23: #780C99
-- 24: #AA38B9
-- 25: #E09FF9
-- 26: #CB007A
-- 27: #EC1F80
-- 28: #F38DA9
-- 29: #684634
-- 30: #95682A
-- 31: #F8B277
-- 32: #AAAAAA
-- 33: #A50E1E
-- 34: #FA8072
-- 35: #E45C1A
-- 36: #D6B594
-- 37: #9C8431
-- 38: #C5AD31
-- 39: #E8D45F
-- 40: #4A6B3A
-- 41: #5A944A
-- 42: #84C573
-- 43: #0F799F
-- 44: #BBFAF2
-- 45: #7DC7FF
-- 46: #4D31B8
-- 47: #4A4284
-- 48: #7A71C4
-- 49: #B5AEF1
-- 50: #DBA463
-- 51: #D18051
-- 52: #FFC5A5
-- 53: #9B5249
-- 54: #D18078
-- 55: #FAB6A4
-- 56: #7B6352
-- 57: #9C846B
-- 58: #333941
-- 59: #6D758D
-- 60: #B3B9D1
-- 61: #6D643F
-- 62: #948C6B
-- 63: #CDC59E
 
 
 ## VOPLPACK (.voplpack)
@@ -146,20 +58,14 @@ Index 0 is transparent RGBA. 1..63 are opaque RGB unless noted.
 Bundles multiple `.vopl` payloads with shared common header.
 
 ### File header
-- magic: 8 bytes ASCII `VOPLPACK`
-- packVersion: uint8 = 1
-- compression: uint8 (0=none, 1=zlib). If 1, the entire content section below is zlib-compressed.
 
 ### Content section (uncompressed view)
-- common header subset:
   - ver: uint8 (must be 3)
   - bpp: uint8
   - w: uint8
   - h: uint8
   - d: uint8
   - pal: uint16
-- n: uint32 (# entries)
-- entries (repeat n times):
   - nameLen: uint16
   - name: `nameLen` bytes
   - enc: uint8 (same semantics as `.vopl` enc)
@@ -244,7 +150,6 @@ func encodeRLEV3(stream []uint8, bpp uint8) []byte {
 
 
 ## JavaScript examples
-
 Dense writer (Morton order indices computed on the fly; no zlib):
 
 ```js
@@ -299,10 +204,5 @@ function buildVOPLDense(grid){
 - Decoder expects exactly `plen` bytes of payload after header.
 - Decoder ignores w/h/d from the header and reconstructs 16×16×16.
 
-
-## Reimplementing from this spec
-- Implement LSB-first bit I/O.
-- Implement 3D Morton order over 16×16×16.
-- Implement dense/sparse/rle encoders/decoders with exact field widths.
 - Optionally apply zlib to the raw encoding stream if it reduces size; set `enc|=0x80`.
 - Write/read headers exactly as specified.
