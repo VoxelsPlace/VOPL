@@ -153,7 +153,6 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
 			lin[int(idx)] = uint8(col)
 		}
 		applyOrder(grid, lin)
-	// encRLE removed
 	case encSparse2:
 		if len(payload) < 512 {
 			return nil, fmt.Errorf("payload insuficiente para Sparse2")
@@ -178,13 +177,8 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
 			consumed++
 		}
 		applyOrder(grid, lin)
-	// encRLE0 removed
 	default:
 		return nil, fmt.Errorf("encoding desconhecido: %d", enc)
 	}
 	return grid, nil
 }
-
-// v1 mesh loader and meshToGrid removed
-
-// ExpandRLE removed: RLE is no longer supported.

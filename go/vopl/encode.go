@@ -9,9 +9,7 @@ import (
 const (
 	encDense  = 0
 	encSparse = 1
-	// encRLE = 2, removed
 	encSparse2 = 3 // occupancy bitmap + nonzero values
-	// encRLE0 = 4, removed
 )
 
 type encoded struct {
@@ -50,8 +48,6 @@ func encodeSparse(grid *VoxelGrid, bpp uint8) []byte {
 	return bw.bytes()
 }
 
-// encodeRLE removed
-
 func encodeSparse2(grid *VoxelGrid, bpp uint8) []byte {
 	stream := flatten(grid)
 	// 4096-bit occupancy bitmap -> 512 bytes
@@ -77,8 +73,6 @@ func encodeSparse2(grid *VoxelGrid, bpp uint8) []byte {
 	out = append(out, values...)
 	return out
 }
-
-// encodeRLE0 removed
 
 func zlibCompress(b []byte) []byte {
 	var buf bytes.Buffer

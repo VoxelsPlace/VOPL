@@ -1,6 +1,7 @@
 export interface VoplWasmAPI {
-  rle2vopl(rle: string): Uint8Array;
+  vpi2vopl(vpi: Uint8Array): Uint8Array;
   vopl2glb(vopl: Uint8Array): Uint8Array;
+  vopl2vpi(vopl: Uint8Array): Uint8Array;
   packVopls(files: Record<string, Uint8Array>): Uint8Array;
   unpackVoplpack(pack: Uint8Array): Record<string, Uint8Array>;
 }

@@ -3,7 +3,7 @@
 //   <script src="wasm_exec.js"></script>
 //   import { initVoplWasm } from './browser.js'
 //   const api = await initVoplWasm('vopl.wasm')
-//   const voplBytes = api.rle2vopl("256,1,34,7, ...")
+//   const voplBytes = api.vpi2vopl(vpiBytes)
 //
 export async function initVoplWasm(wasmURL = 'vopl.wasm') {
   if (typeof Go === 'undefined') {
@@ -13,9 +13,9 @@ export async function initVoplWasm(wasmURL = 'vopl.wasm') {
   const result = await WebAssembly.instantiateStreaming(fetch(wasmURL), go.importObject);
   go.run(result.instance);
   // functions are attached on globalThis by the wasm main
-  const { rle2vopl, vopl2glb, packVopls, unpackVoplpack } = globalThis;
-  if (!rle2vopl || !vopl2glb || !packVopls || !unpackVoplpack) {
+  const { vpi2vopl, vopl2glb, vopl2vpi, packVopls, unpackVoplpack } = globalThis;
+  if (!vpi2vopl || !vopl2glb || !vopl2vpi || !packVopls || !unpackVoplpack) {
     throw new Error('WASM functions not initialized');
   }
-  return { rle2vopl, vopl2glb, packVopls, unpackVoplpack };
+  return { vpi2vopl, vopl2glb, vopl2vpi, packVopls, unpackVoplpack };
 }
