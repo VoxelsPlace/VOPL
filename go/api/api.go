@@ -4,40 +4,28 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"strconv"
-	"strings"
 
 	"github.com/qmuntal/gltf"
 	"github.com/qmuntal/gltf/modeler"
 	"github.com/voxelsplace/vopl/go/vopl"
 )
 
-// RLEToVOPLBytes converts an RLE string (e.g., "10,0,4,1,...") to a .vopl file as bytes.
-func RLEToVOPLBytes(rleArg string) ([]byte, error) {
-	rleStr := strings.Trim(rleArg, "[] ")
-	parts := strings.Split(rleStr, ",")
-	if len(parts) == 0 {
-		return nil, fmt.Errorf("empty RLE input")
-	}
-	var rle []int
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		i, err := strconv.Atoi(p)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse RLE '%s': %w", p, err)
-		}
-		rle = append(rle, i)
-	}
-
-	grid, err := vopl.ExpandRLE(rle)
+// VPI18ToVOPLBytes decodes a VPI18 bitstream into a .vopl file as bytes.
+func VPI18ToVOPLBytes(vpi []byte) ([]byte, error) {
+	grid, err := vopl.VPI18DecodeToGrid(vpi)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand RLE: %w", err)
+		return nil, fmt.Errorf("failed to decode VPI18: %w", err)
 	}
-	// Return in-memory .vopl bytes
 	return vopl.SaveVoplGridToBytes(grid), nil
+}
+
+// VOPLToVPI18 encodes the given .vopl bytes into a VPI18 bitstream.
+func VOPLToVPI18(voplBytes []byte) ([]byte, error) {
+	grid, err := vopl.LoadVoplGridFromBytes(voplBytes)
+	if err != nil {
+		return nil, err
+	}
+	return vopl.VPI18EncodeGrid(grid), nil
 }
 
 // VOPLToGLB takes a .vopl file bytes and returns a .glb bytes using greedy mesh

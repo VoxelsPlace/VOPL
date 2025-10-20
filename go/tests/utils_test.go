@@ -1,69 +1,67 @@
 package test
 
 import (
-	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/voxelsplace/vopl/go/utils"
+	"github.com/voxelsplace/vopl/go/vopl"
 )
 
-func TestRle2Vopl(t *testing.T) {
-	rle := "256,1,34,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,4,7,12,0,34,7,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,2,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,2,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,1,0,1,19,3328,0"
-	outPath := "output/test_output.vopl"
-	expectedPath := "expected/fromrle.vopl"
-	err := utils.RunRLE2VOPL(rle, outPath)
-	if err != nil {
-		t.Fatalf("RunRLE2VOPL failed: %v", err)
+func makeSmallGrid() *vopl.VoxelGrid {
+	var g vopl.VoxelGrid
+	for y := range 2 {
+		for z := range 2 {
+			for x := range 3 {
+				g[y][x][z] = uint8(1 + (x+y+z)%6)
+			}
+		}
 	}
-	outData, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
+	return &g
+}
+
+func TestUtils_VPI18ToVOPLFile(t *testing.T) {
+	// Build a VPI18 file from a small grid
+	grid := makeSmallGrid()
+	vpi := vopl.VPI18EncodeGrid(grid)
+	inPath := "output/in.vpi"
+	outPath := "output/from_vpi.vopl"
+	_ = os.MkdirAll(filepath.Dir(outPath), 0o755)
+	if err := os.WriteFile(inPath, vpi, 0o644); err != nil {
+		t.Fatalf("write vpi: %v", err)
 	}
-	expectedData, err := os.ReadFile(expectedPath)
-	if err != nil {
-		t.Fatalf("Failed to read expected file: %v", err)
+	if err := utils.RunVPI18ToVOPLFile(inPath, outPath); err != nil {
+		t.Fatalf("RunVPI18ToVOPLFile: %v", err)
 	}
-	if bytes.Equal(outData, expectedData) == false {
-		t.Fatalf("Output does not match expected output")
+	got, err := vopl.LoadVoplGrid(outPath)
+	if err != nil {
+		t.Fatalf("load vopl: %v", err)
+	}
+	if *got != *grid {
+		t.Fatalf("grid mismatch after VPI18->VOPL conversion")
 	}
 }
 
-func TestVopl2Glb(t *testing.T) {
-	inputPath := "expected/fromrle.vopl"
-	outPath := "output/test_output.glb"
-	expectedPath := "expected/fromvopl.glb"
-	err := utils.RunVOPL2GLB(inputPath, outPath)
+func TestUtils_UpdateVOPL_WithVPI18_UtilsSuite(t *testing.T) {
+	// Start from empty VOPL file and apply VPI18 updates
+	var base vopl.VoxelGrid
+	basePath := "output/base_utils.vopl"
+	outPath := "output/updated_utils.vopl"
+	_ = os.MkdirAll(filepath.Dir(basePath), 0o755)
+	if err := vopl.SaveVoplGrid(&base, basePath); err != nil {
+		t.Fatalf("save base vopl: %v", err)
+	}
+	updates := vopl.VPI18EncodeGrid(makeSmallGrid())
+	if err := utils.RunUpdateVOPL(updates, basePath, outPath); err != nil {
+		t.Fatalf("RunUpdateVOPL: %v", err)
+	}
+	got, err := vopl.LoadVoplGrid(outPath)
 	if err != nil {
-		t.Fatalf("RunVOPL2GLB failed: %v", err)
+		t.Fatalf("load updated vopl: %v", err)
 	}
-	outData, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
-	}
-	expectedData, err := os.ReadFile(expectedPath)
-	if err != nil {
-		t.Fatalf("Failed to read expected file: %v", err)
-	}
-	if bytes.Equal(outData, expectedData) == false {
-		t.Fatalf("Output does not match expected output")
-	}
-}
-
-func TestRle2Vopl_InvalidRLE(t *testing.T) {
-	rle := "34,7,abc,0"
-	outPath := "test_output_invalid.vopl"
-	err := utils.RunRLE2VOPL(rle, outPath)
-	if err == nil {
-		t.Fatalf("Expected error for invalid RLE input, got nil")
-	}
-}
-
-func TestRle2Vopl_EmptyRLE(t *testing.T) {
-	rle := ""
-	outPath := "test_output_empty.vopl"
-	err := utils.RunRLE2VOPL(rle, outPath)
-	if err == nil {
-		t.Fatalf("Expected error for empty RLE input, got nil")
+	want := makeSmallGrid()
+	if *got != *want {
+		t.Fatalf("grid mismatch after update")
 	}
 }

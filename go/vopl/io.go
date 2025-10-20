@@ -153,27 +153,7 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
 			lin[int(idx)] = uint8(col)
 		}
 		applyOrder(grid, lin)
-	case encRLE:
-		br := newBitReader(payload)
-		lin := make([]uint8, 0, Width*Height*Depth)
-		for len(lin) < Width*Height*Depth {
-			ln, err := br.readBits(8)
-			if err != nil {
-				return nil, err
-			}
-			col, err := br.readBits(bpp)
-			if err != nil {
-				return nil, err
-			}
-			count := int(ln) + 1
-			for j := 0; j < count; j++ {
-				lin = append(lin, uint8(col))
-			}
-		}
-		if len(lin) != Width*Height*Depth {
-			return nil, fmt.Errorf("RLE inválido")
-		}
-		applyOrder(grid, lin)
+	// encRLE removed
 	case encSparse2:
 		if len(payload) < 512 {
 			return nil, fmt.Errorf("payload insuficiente para Sparse2")
@@ -198,59 +178,7 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
 			consumed++
 		}
 		applyOrder(grid, lin)
-	case encRLE0:
-		// parse alternating zero-run and literal blocks with varint lengths
-		// header is sequence of [flag byte][uvarint length] ... then for literal blocks, values bitstream follows
-		header := payload
-		// scan header to find start of values stream
-		pos := 0
-		blocks := make([]struct {
-			zero bool
-			ln   uint32
-		}, 0, 64)
-		total := 0
-		for pos < len(header) {
-			flag := header[pos]
-			pos++
-			ln, err := readUVarint(header, &pos)
-			if err != nil {
-				return nil, err
-			}
-			blocks = append(blocks, struct {
-				zero bool
-				ln   uint32
-			}{zero: flag != 0, ln: ln})
-			if flag == 0 {
-				// literal block contributes ln values to the value bitstream; accounted later
-			}
-			total += int(ln)
-			if total >= Width*Height*Depth {
-				break
-			}
-		}
-		if total != Width*Height*Depth {
-			return nil, fmt.Errorf("RLE0 total não fecha chunk (%d)", total)
-		}
-		// remaining bytes after header parsing are the bit-packed literal values
-		values := header[pos:]
-		br := newBitReader(values)
-		lin := make([]uint8, 0, Width*Height*Depth)
-		for _, blk := range blocks {
-			if blk.zero {
-				for j := uint32(0); j < blk.ln; j++ {
-					lin = append(lin, 0)
-				}
-				continue
-			}
-			for j := uint32(0); j < blk.ln; j++ {
-				v, err := br.readBits(bpp)
-				if err != nil {
-					return nil, err
-				}
-				lin = append(lin, uint8(v))
-			}
-		}
-		applyOrder(grid, lin)
+	// encRLE0 removed
 	default:
 		return nil, fmt.Errorf("encoding desconhecido: %d", enc)
 	}
@@ -259,32 +187,4 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
 
 // v1 mesh loader and meshToGrid removed
 
-func ExpandRLE(rle []int) (*VoxelGrid, error) {
-	if len(rle)%2 != 0 {
-		return nil, fmt.Errorf("RLE deve ter pares count-value")
-	}
-	var grid VoxelGrid
-	total := Height * Width * Depth
-	idx := 0
-	for i := 0; i < len(rle); i += 2 {
-		count := rle[i]
-		value := rle[i+1]
-		if value < 0 || value > 63 {
-			return nil, fmt.Errorf("valor inválido: %d (0-63)", value)
-		}
-		for j := 0; j < count; j++ {
-			if idx >= total {
-				return nil, fmt.Errorf("RLE excede o tamanho do chunk")
-			}
-			y := idx / (Width * Depth)
-			z := (idx / Width) % Depth
-			x := idx % Width
-			grid[y][x][z] = uint8(value)
-			idx++
-		}
-	}
-	if idx != total {
-		return nil, fmt.Errorf("RLE não preenche o chunk inteiro (%d/%d)", idx, total)
-	}
-	return &grid, nil
-}
+// ExpandRLE removed: RLE is no longer supported.
