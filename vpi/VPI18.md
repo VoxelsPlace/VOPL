@@ -1,7 +1,7 @@
 # VPI18 Specification
 
 **Voxel Packed Index 18-bit Format**
-*Version 1.0 — October 2025*
+*Version — October 2025*
 
 ---
 
