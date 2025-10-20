@@ -5,6 +5,28 @@ This document specifies the binary layout and behavior of `.vopl` and `.voplpack
 ### Scope
 
 
+## CLI and packages
+
+This module is now library-first and exposes a thin CLI under `cmd/vopltool`.
+
+- Run without installing:
+
+  - `go run ./cmd/vopltool --help`
+  - `go run ./cmd/vopltool vpi2vopl input.vpi output.vopl`
+
+- Install the CLI:
+
+  - `go install github.com/voxelsplace/vopl/go/cmd/vopltool@latest`
+  - Then invoke `vopltool` from your `$GOBIN` (`~/go/bin` by default).
+
+- Importable packages:
+
+  - `github.com/voxelsplace/vopl/go/vopl` — core format code (encode/decode, mesh, pack, etc.)
+  - `github.com/voxelsplace/vopl/go/api` — byte-oriented helpers for web/wasm and programmatic use
+  - `github.com/voxelsplace/vopl/go/utils` — filesystem-oriented helpers used by the CLI
+
+
+
 ## .vopl (grid format)
 
 ### Header (16 bytes total, including magic)
