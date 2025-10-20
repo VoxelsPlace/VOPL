@@ -1,7 +1,10 @@
 import { HEIGHT, WIDTH, DEPTH } from './palette.js';
 import { updateVoxel } from './input.js';
+import { encodeVPI18, applyVPI18 } from './vpi18.js';
 
 export function applyLayers(layers) {
+  // Convert layer grid into VPI18 entries then apply via VPI18 decoder to ensure unified path.
+  const entries = [];
   for (let y = 0; y < HEIGHT; y++) {
     const rows = layers[y];
     for (let z = 0; z < DEPTH; z++) {
@@ -9,10 +12,15 @@ export function applyLayers(layers) {
       const values = parseRow(row);
       for (let x = 0; x < WIDTH; x++) {
         const v = values[x] | 0;
-        if (v !== 0) updateVoxel(x, y, z, v);
+        if (v !== 0) {
+          const index = x + y * WIDTH + z * WIDTH * HEIGHT;
+          entries.push({ index, paletteIndex: v & 0x3F });
+        }
       }
     }
   }
+  const stream = encodeVPI18(entries);
+  applyVPI18(stream, updateVoxel);
 }
 
 function parseRow(row) {

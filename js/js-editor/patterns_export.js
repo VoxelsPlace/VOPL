@@ -3,6 +3,7 @@ import { voxelGrid } from './state.js';
 import { updateVoxel } from './input.js';
 import { applyLayers } from './layer_reader.js';
 import { getExampleById } from './examples_loader.js';
+import { encodeVPI18, entriesFromVoxelGrid } from './vpi18.js';
 
 export function clearAllVoxels() {
   for (let y = 0; y < HEIGHT; y++) {
@@ -124,7 +125,7 @@ export function genSphere() {
 export function gen2x2Contour3Layers() {
   clearAllVoxels();
   // We interpret "2x2 width height" as a border thickness of 2 voxels on a large square,
-  // leaving a 1-voxel margin around the edges (to match the provided RLE shape),
+  // leaving a 1-voxel margin around the edges,
   // with ONLY 2 blocks height (two contiguous layers). Colors are noise-based per voxel.
   const thickness = 2;
   const margin = 1;
@@ -161,32 +162,25 @@ export function gen2x2Contour3Layers() {
   }
 }
 
-export function buildRLE() {
-  const rle = [];
-  let count = 0, prev = -1;
-  for (let y = 0; y < HEIGHT; y++) {
-    for (let z = 0; z < DEPTH; z++) {
-      for (let x = 0; x < WIDTH; x++) {
-        const val = voxelGrid[y][x][z];
-        if (val === prev) {
-          count++;
-        } else {
-          if (count > 0) rle.push(count, prev);
-          prev = val; count = 1;
-        }
-      }
-    }
-  }
-  if (count > 0) rle.push(count, prev);
-  return rle;
+// Build a VPI18 binary from the current voxel grid
+export function buildVPI18() {
+  const entries = entriesFromVoxelGrid(voxelGrid);
+  return encodeVPI18(entries);
 }
 
-export function generateCommand() {
-  const rle = buildRLE();
-  const outName = (document.getElementById('outputName').value || 'output1.vopl').trim();
-  const cmd = `go run . rle2vopl "${rle.join(',')}" "${outName}"`;
-  document.getElementById('rleOutput').value = cmd;
-  return cmd;
+// Trigger a client-side download of the VPI18 binary
+export function downloadVPI18() {
+  const bin = buildVPI18();
+  const outName = (document.getElementById('outputName').value || 'output1.vpi18').trim();
+  const blob = new Blob([bin], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = outName.endsWith('.vpi18') ? outName : `${outName}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function genSquare() {
@@ -194,5 +188,23 @@ export function genSquare() {
   if (!ex) return;
   clearAllVoxels();
   applyLayers(ex.layers);
+}
+
+// Optional: compute VPI18 diff between two voxel grids (A->B) returning added/changed voxels only
+export function buildVPI18Diff(prevGrid, nextGrid) {
+  const entries = [];
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let z = 0; z < DEPTH; z++) {
+      for (let x = 0; x < WIDTH; x++) {
+        const a = prevGrid[y][x][z] | 0;
+        const b = nextGrid[y][x][z] | 0;
+        if (a !== b && b !== 0) {
+          const index = x + y * WIDTH + z * WIDTH * HEIGHT;
+          entries.push({ index, paletteIndex: b & 0x3F });
+        }
+      }
+    }
+  }
+  return encodeVPI18(entries);
 }
 

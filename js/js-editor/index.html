@@ -173,7 +173,7 @@
         box-shadow: 0 0 0 2px rgba(41, 121, 255, 0.2);
     }
 
-    textarea#rleOutput {
+    textarea#vpi18Info {
       min-height: 80px;
       background: #fafafa;
       padding: 8px;
@@ -217,7 +217,7 @@
     </div>
     
     <div class="ui-group">
-        <h3>Generate</h3>
+    <h3>Generate</h3>
         <div class="generator-grid">
             <button id="fillChunk">Fill</button>
             <button id="randomNoise">Noise</button>
@@ -230,18 +230,15 @@
     </div>
     
     <div class="ui-group">
-      <h3>Export</h3>
+      <h3>Export (VPI18)</h3>
       <div class="input-row">
-        <input id="outputName" value="output1.vopl" type="text" />
+        <input id="outputName" value="output1.vpi18" type="text" />
       </div>
-      <textarea id="rleOutput" readonly>Click "Generate CLI" to create the command.</textarea>
       <div class="input-row">
-        <button id="exportRLE">Generate CLI</button>
-        <button id="copyCmd">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2H8C4.691 2 2 4.691 2 8v12a1 1 0 0 0 1 1h12c3.309 0 6-2.691 6-6V8c0-3.309-2.691-6-6-6zm4 13c0 2.206-1.794 4-4 4H4V8c0-2.206 1.794-4 4-4h8c2.206 0 4 1.794 4 4v7z"/><path d="M16.5 6H11a.5.5 0 0 0 0 1h5.5a.5.5 0 0 0 0-1zM14.5 9H11a.5.5 0 0 0 0 1h3.5a.5.5 0 0 0 0-1z"/></svg>
-            Copy
-        </button>
+        <button id="importVPI18Btn">Import .vpi18</button>
+        <button id="exportVPI18">Download .vpi18</button>
       </div>
+      <input id="importVPI18" type="file" accept=".vpi18,application/octet-stream" style="display:none" />
     </div>
     
     <div id="tip">Tip: Right-click also erases</div>
