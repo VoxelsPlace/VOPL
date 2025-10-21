@@ -28,7 +28,7 @@ func RunVOPLPACK2GLB(inPackPath, outGlbPath string) error {
 	doc.Asset.Generator = "VOPLPACK -> GLB"
 
 	// Use a single default material; colors come from per-vertex COLOR_0 attribute.
-	pbr := &gltf.PBRMetallicRoughness{BaseColorFactor: &[4]float32{1, 1, 1, 1}, MetallicFactor: gltf.Float(0), RoughnessFactor: gltf.Float(1)}
+	pbr := &gltf.PBRMetallicRoughness{BaseColorFactor: &[4]float64{1, 1, 1, 1}, MetallicFactor: gltf.Float(0), RoughnessFactor: gltf.Float(1)}
 	material := &gltf.Material{PBRMetallicRoughness: pbr, AlphaMode: gltf.AlphaOpaque}
 	doc.Materials = []*gltf.Material{material}
 
@@ -70,11 +70,11 @@ func RunVOPLPACK2GLB(inPackPath, outGlbPath string) error {
 		indicesAccessor := modeler.WriteIndices(doc, indices)
 
 		prim := &gltf.Primitive{
-			Attributes: map[string]uint32{
-				gltf.POSITION: uint32(posAccessor),
-				gltf.COLOR_0:  uint32(colorAccessor),
+			Attributes: map[string]int{
+				gltf.POSITION: posAccessor,
+				gltf.COLOR_0:  colorAccessor,
 			},
-			Indices:  gltf.Index(uint32(indicesAccessor)),
+			Indices:  gltf.Index(indicesAccessor),
 			Material: gltf.Index(0),
 		}
 
@@ -85,10 +85,10 @@ func RunVOPLPACK2GLB(inPackPath, outGlbPath string) error {
 		c := i % cols
 		tx := float32(c) * stepX
 		tz := float32(r) * stepZ
-		node := &gltf.Node{Name: m.Name, Mesh: gltf.Index(uint32(len(doc.Meshes) - 1))}
-		node.Translation = [3]float32{tx, 0, tz}
+		node := &gltf.Node{Name: m.Name, Mesh: gltf.Index(len(doc.Meshes) - 1)}
+		node.Translation = [3]float64{float64(tx), 0, float64(tz)}
 		doc.Nodes = append(doc.Nodes, node)
-		doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, uint32(len(doc.Nodes)-1))
+		doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, len(doc.Nodes)-1)
 	}
 
 	return gltf.SaveBinary(doc, outGlbPath)

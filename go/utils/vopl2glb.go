@@ -68,16 +68,16 @@ func RunVOPL2GLB(inPath, outPath string) error {
 	indicesAccessor := modeler.WriteIndices(doc, indices)
 
 	prim := &gltf.Primitive{
-		Attributes: map[string]uint32{
-			gltf.POSITION: uint32(posAccessor),
-			gltf.NORMAL:   uint32(normalAccessor),
-			gltf.COLOR_0:  uint32(colorAccessor),
+		Attributes: map[string]int{
+			gltf.POSITION: posAccessor,
+			gltf.NORMAL:   normalAccessor,
+			gltf.COLOR_0:  colorAccessor,
 		},
-		Indices: gltf.Index(uint32(indicesAccessor)),
+		Indices: gltf.Index(indicesAccessor),
 	}
 
 	pbr := &gltf.PBRMetallicRoughness{
-		BaseColorFactor: &[4]float32{1, 1, 1, 1},
+		BaseColorFactor: &[4]float64{1, 1, 1, 1},
 		MetallicFactor:  gltf.Float(0),
 		RoughnessFactor: gltf.Float(1),
 	}
@@ -94,7 +94,7 @@ func RunVOPL2GLB(inPath, outPath string) error {
 	doc.Meshes = []*gltf.Mesh{meshGltf}
 	node := &gltf.Node{Mesh: gltf.Index(0)}
 	doc.Nodes = []*gltf.Node{node}
-	doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, uint32(0))
+	doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, 0)
 
 	return gltf.SaveBinary(doc, outPath)
 }
