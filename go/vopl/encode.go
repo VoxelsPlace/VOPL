@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	encDense  = 0
-	encSparse = 1
+	encDense   = 0
+	encSparse  = 1
 	encSparse2 = 3 // occupancy bitmap + nonzero values
 )
 
