@@ -1,50 +1,29 @@
 import { HEIGHT, WIDTH, DEPTH } from './palette.js';
+import { wasmApi } from './wasm_api.js';
 
 // Packs an array of entries { index: 0..4095, paletteIndex: 0..63 } into a Uint8Array VPI18 bitstream.
 export function encodeVPI18(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return new Uint8Array(0);
-  const totalBits = entries.length * 18;
-  const totalBytes = Math.ceil(totalBits / 8);
-  const out = new Uint8Array(totalBytes);
-  let bitPos = 0; // next bit to write [0..)
-
-  for (const e of entries) {
-    const idx = e.index & 0xFFF; // 12 bits
-    const col = e.paletteIndex & 0x3F; // 6 bits
-    const value = (idx << 6) | col; // 18 bits
-    // Write 18 bits MSB->LSB relative to this value
-    for (let b = 17; b >= 0; b--) {
-      const bit = (value >> b) & 1;
-      const byteIndex = bitPos >> 3;
-      const bitIndex = 7 - (bitPos & 7);
-      out[byteIndex] |= bit << bitIndex;
-      bitPos++;
-    }
+  const n = entries.length;
+  const indices = new Uint16Array(n);
+  const colors = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const e = entries[i];
+    indices[i] = e.index & 0x0FFF;
+    colors[i] = e.paletteIndex & 0x3F;
   }
-  return out;
+  return wasmApi.vpiEncodeEntries(indices, colors);
 }
 
 // Decodes a VPI18 bitstream (Uint8Array, ArrayBuffer, or DataView) into an array of entries.
 export function decodeVPI18(data) {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data.buffer ?? data);
-  const totalBits = bytes.length * 8;
-  const entryCount = Math.floor(totalBits / 18);
-  const entries = new Array(entryCount);
-  let bitPos = 0;
-  for (let i = 0; i < entryCount; i++) {
-    let value = 0;
-    for (let b = 0; b < 18; b++) {
-      const byteIndex = bitPos >> 3;
-      const bitIndex = 7 - (bitPos & 7);
-      const bit = (bytes[byteIndex] >> bitIndex) & 1;
-      value = (value << 1) | bit;
-      bitPos++;
-    }
-    const idx = (value >> 6) & 0xFFF;
-    const paletteIndex = value & 0x3F;
-    entries[i] = { index: idx, paletteIndex };
-  }
-  return entries;
+  const res = wasmApi.vpiDecodeEntries(bytes);
+  if (typeof res === 'string') throw new Error(res);
+  const idx = res.indices, col = res.colors;
+  const out = new Array(idx.length);
+  for (let i = 0; i < idx.length; i++) out[i] = { index: idx[i], paletteIndex: col[i] };
+  return out;
 }
 
 // Converts linear index -> x,y,z with index = x + y*W + z*W*H

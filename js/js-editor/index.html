@@ -44,7 +44,7 @@
       gap: 20px;
       overflow-y: auto;
     }
-    
+
     .ui-group {
         display: flex;
         flex-direction: column;
@@ -101,12 +101,12 @@
       border-color: var(--accent-color);
       transform: scale(1.1);
     }
-    
+
     .color-swatch[data-color="0"] {
-        background-image: 
-            linear-gradient(45deg, #ccc 25%, transparent 25%), 
-            linear-gradient(-45deg, #ccc 25%, transparent 25%), 
-            linear-gradient(45deg, transparent 75%, #ccc 75%), 
+        background-image:
+            linear-gradient(45deg, #ccc 25%, transparent 25%),
+            linear-gradient(-45deg, #ccc 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #ccc 75%),
             linear-gradient(-45deg, transparent 75%, #ccc 75%);
         background-size: 10px 10px;
         background-color: #f0f0f0;
@@ -186,7 +186,7 @@
       font-size: 13px;
       resize: vertical;
     }
-    
+
     #tip {
         font-size: 12px;
         opacity: 0.7;
@@ -200,7 +200,7 @@
 
 <body>
   <div id="controls" class="ui-panel">
-    
+
     <div class="ui-group">
       <h3>Tools</h3>
       <div class="tool-selection">
@@ -215,7 +215,7 @@
       </div>
       <div id="colorPalette"></div>
     </div>
-    
+
     <div class="ui-group">
     <h3>Generate</h3>
         <div class="generator-grid">
@@ -228,7 +228,7 @@
             <button id="clearChunk" style="grid-column: 1 / -1; color: var(--danger-color); border-color: var(--danger-color);">Clear All</button>
         </div>
     </div>
-    
+
     <div class="ui-group">
       <h3>Export (VPI18)</h3>
       <div class="input-row">
@@ -240,12 +240,13 @@
       </div>
       <input id="importVPI18" type="file" accept=".vpi18,application/octet-stream" style="display:none" />
     </div>
-    
+
     <div id="tip">Tip: Right-click also erases</div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+  <script src="wasm_exec.js"></script>
   <script type="module" src="./main.js"></script>
 </body>
 </html>

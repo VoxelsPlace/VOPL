@@ -6,6 +6,7 @@ import (
 	"syscall/js"
 
 	"github.com/voxelsplace/vopl/go/api"
+	"github.com/voxelsplace/vopl/go/vopl"
 )
 
 // vpi2vopl: Uint8Array(VPI18) -> Uint8Array(.vopl)
@@ -55,6 +56,53 @@ func vopl2vpi(this js.Value, args []js.Value) any {
 	return uint8arr
 }
 
+// vpiEncodeEntries: (Uint16Array indices, Uint8Array colors) -> Uint8Array(VPI18)
+func vpiEncodeEntries(this js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return js.ValueOf("missing indices/colors")
+	}
+	idxArr := args[0]
+	colArr := args[1]
+	n := idxArr.Get("length").Int()
+	if colArr.Get("length").Int() != n {
+		return js.ValueOf("indices and colors length mismatch")
+	}
+	entries := make([]vopl.VPI18Entry, n)
+	for i := 0; i < n; i++ {
+		idx := uint16(idxArr.Index(i).Int())
+		col := uint8(colArr.Index(i).Int())
+		entries[i] = vopl.VPI18Entry{Index: idx, Color: col}
+	}
+	out := vopl.VPI18EncodeEntries(entries)
+	uint8arr := js.Global().Get("Uint8Array").New(len(out))
+	js.CopyBytesToJS(uint8arr, out)
+	return uint8arr
+}
+
+// vpiDecodeEntries: Uint8Array(VPI18) -> { indices: Uint16Array, colors: Uint8Array }
+func vpiDecodeEntries(this js.Value, args []js.Value) any {
+	if len(args) < 1 {
+		return js.ValueOf("missing vpi bytes")
+	}
+	buf := make([]byte, args[0].Get("length").Int())
+	js.CopyBytesToGo(buf, args[0])
+	entries, err := vopl.VPI18DecodeToEntries(buf)
+	if err != nil {
+		return js.ValueOf(err.Error())
+	}
+	n := len(entries)
+	idxArr := js.Global().Get("Uint16Array").New(n)
+	colArr := js.Global().Get("Uint8Array").New(n)
+	for i := 0; i < n; i++ {
+		idxArr.SetIndex(i, int(entries[i].Index))
+		colArr.SetIndex(i, int(entries[i].Color))
+	}
+	obj := js.Global().Get("Object").New()
+	obj.Set("indices", idxArr)
+	obj.Set("colors", colArr)
+	return obj
+}
+
 func packVopls(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return js.ValueOf("missing files object")
@@ -102,6 +150,8 @@ func main() {
 	js.Global().Set("vpi2vopl", js.FuncOf(vpi2vopl))
 	js.Global().Set("vopl2glb", js.FuncOf(vopl2glb))
 	js.Global().Set("vopl2vpi", js.FuncOf(vopl2vpi))
+	js.Global().Set("vpiEncodeEntries", js.FuncOf(vpiEncodeEntries))
+	js.Global().Set("vpiDecodeEntries", js.FuncOf(vpiDecodeEntries))
 	js.Global().Set("packVopls", js.FuncOf(packVopls))
 	js.Global().Set("unpackVoplpack", js.FuncOf(unpackVoplpack))
 	select {}

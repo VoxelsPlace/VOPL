@@ -51,6 +51,28 @@ func VPI18EncodeEntries(entries []VPI18Entry) []byte {
 	return bw.bytes()
 }
 
+// VPI18DecodeToEntries decodes a VPI18 bitstream into a slice of entries (Index, Color).
+// Color==0 indicates deletion when applied.
+func VPI18DecodeToEntries(data []byte) ([]VPI18Entry, error) {
+	br := newBitReader(data)
+	out := make([]VPI18Entry, 0, len(data))
+	for {
+		bits, err := br.readBits(18)
+		if err != nil {
+			if err == io.ErrUnexpectedEOF {
+				return out, nil
+			}
+			return nil, err
+		}
+		idx := uint16(bits >> 6)
+		col := uint8(bits & 0x3F)
+		if idx >= 4096 {
+			return nil, fmt.Errorf("VPI18 index out of range: %d", idx)
+		}
+		out = append(out, VPI18Entry{Index: idx, Color: col})
+	}
+}
+
 // VPI18DecodeToGrid decodes a full VPI18 stream into a new grid (starting from all zeros).
 func VPI18DecodeToGrid(data []byte) (*VoxelGrid, error) {
 	var grid VoxelGrid
