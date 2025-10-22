@@ -84,3 +84,37 @@ func TestUtils_UpdateVOPL_WithVPI18(t *testing.T) {
 		t.Fatalf("grid mismatch after update")
 	}
 }
+
+func TestVPI18_DiffDeletionsAndAdds(t *testing.T) {
+	// Start with a small grid
+	grid := makeTestGrid()
+	// Choose one existing voxel to delete and one empty to add
+	// existing: (x=0,y=0,z=0) -> index 0
+	delIdx := uint16(0)
+	// add: (x=5,y=0,z=0) -> index 5
+	addIdx := uint16(5)
+	// Sanity: ensure initial values
+	if grid[0][0][0] == 0 {
+		t.Fatalf("expected initial voxel at (0,0,0) to be non-zero")
+	}
+	// ensure target add position is empty prior to diff
+	grid[0][5][0] = 0
+	// Build diff entries: delete at 0, add at 5 with color 9
+	entries := []vopl.VPI18Entry{
+		{Index: delIdx, Color: 0}, // delete
+		{Index: addIdx, Color: 9}, // add
+	}
+	diff := vopl.VPI18EncodeEntries(entries)
+	if err := vopl.VPI18ApplyToGrid(grid, diff); err != nil {
+		t.Fatalf("apply diff failed: %v", err)
+	}
+	if got := grid[0][0][0]; got != 0 {
+		t.Fatalf("expected deletion at (0,0,0), got %d", got)
+	}
+	x := int(addIdx % 16)
+	y := int((addIdx / 16) % 16)
+	z := int(addIdx / 256)
+	if got := grid[y][x][z]; got != 9 {
+		t.Fatalf("expected add at (%d,%d,%d)=9, got %d", x, y, z, got)
+	}
+}

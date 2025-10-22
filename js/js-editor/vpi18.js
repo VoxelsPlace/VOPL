@@ -68,8 +68,7 @@ export function applyVPI18(bitstream, setVoxelFn) {
   for (const e of entries) {
     const { x, y, z } = indexToXYZ(e.index);
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= DEPTH) continue;
-    if (e.paletteIndex === 0) continue; // empty voxels should not appear, but ignore if present
-    setVoxelFn(x, y, z, e.paletteIndex);
+    setVoxelFn(x, y, z, e.paletteIndex | 0); // 0 clears, non-zero sets
   }
 }
 

@@ -7,8 +7,8 @@
 
 ## 1. Introduction
 
-**VPI18** (*Voxel Packed Index 18-bit*) is a compact binary format for representing voxel chunks of fixed size **16×16×16 (4096)**.
-It replaces traditional RLE by providing **incremental updates**, **efficient storage**, and **constant-time decoding**.
+**VPI18** (*Voxel Packed Index 18-bit*) is a compact binary format for representing sparse voxel updates to chunks of fixed size **16×16×16 (4096)**.
+It provides **incremental updates**, **efficient storage**, and **constant-time decoding**.
 
 Each active voxel (≠ 0) is encoded in **18 bits**, combining **12 bits for the voxel’s linear index** and **6 bits for the color index**.
 
@@ -28,20 +28,20 @@ Each active voxel (≠ 0) is encoded in **18 bits**, combining **12 bits for the
 
 ## 3. Binary layout
 
-| Field     | Bits        | Range  | Description                          |
-| --------- | ----------- | ------ | ------------------------------------ |
-| `index`   | 12          | 0–4095 | Linear voxel index inside the chunk  |
-| `color`   | 6           | 0–63   | Color index (0 = empty/air, ignored) |
-| **Total** | **18 bits** | —      | Continuous stream of active voxels   |
+| Field     | Bits        | Range  | Description                                |
+| --------- | ----------- | ------ | ------------------------------------------ |
+| `index`   | 12          | 0–4095 | Linear voxel index inside the chunk        |
+| `color`   | 6           | 0–63   | Color index (0 = delete/clear voxel)       |
+| **Total** | **18 bits** | —      | Continuous stream of voxel update entries  |
 
 ---
 
 ## 4. Encoding rules
 
-1. **Skip empty voxels** — any voxel with `color == 0` is omitted.
-2. **Continuous packing** — all voxels are packed bit-by-bit with no padding.
-3. **Fixed traversal order:** iterate `y → z → x`.
-4. **Optional byte alignment:** implementations may align to 3-byte multiples for hardware efficiency.
+1. **Color 0 is deletion** — an entry with `color == 0` clears the voxel at `index`.
+2. **Continuous packing** — all entries are packed bit-by-bit with no padding.
+3. **Entry order is arbitrary** — receivers apply updates in stream order; the last update to the same index wins.
+4. **Optional byte alignment** — implementations may align to 3-byte multiples for hardware efficiency.
 
 ---
 
@@ -86,13 +86,12 @@ Each 3-byte group (24 bits) contains 18 valid bits; the remaining 6 bits spill i
 
 ---
 
-## 7. Incremental updates (VPI18-Diff)
+## 7. Incremental updates
 
-For differential updates:
+Transmit only the changed `(index, color)` pairs using the 18-bit packing scheme. Apply updates directly:
 
-* Transmit only the changed `(index, color)` pairs.
-* Same 18-bit packing scheme.
-* The client applies updates directly via `updateVoxel(index, color)` without rebuilding the full chunk.
+* `color > 0` — set voxel at `index` to `color`.
+* `color == 0` — delete/clear voxel at `index`.
 
 ---
 
@@ -107,24 +106,25 @@ For differential updates:
 
 ## 9. Pseudocode
 
-### Encoder
+### Encoder (building updates)
 
 ```python
-for (index, color) in voxels:
-    if color == 0:
-        continue
-    bits = (index << 6) | color
+for (index, color) in updates:  # updates may include zeros for deletions
+    bits = (index << 6) | (color & 0x3F)
     stream.write_bits(bits, 18)
 ```
 
-### Decoder
+### Decoder (applying updates)
 
 ```python
 while not end_of_stream:
     bits = stream.read_bits(18)
     index = bits >> 6
     color = bits & 0x3F
-    voxelGrid[index] = color
+    if color == 0:
+        voxelGrid[index] = 0
+    else:
+        voxelGrid[index] = color
 ```
 
 ---
