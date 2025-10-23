@@ -89,10 +89,10 @@ func TestVPI18_DiffDeletionsAndAdds(t *testing.T) {
 	// Start with a small grid
 	grid := makeTestGrid()
 	// Choose one existing voxel to delete and one empty to add
-	// existing: (x=0,y=0,z=0) -> index 0
-	delIdx := uint16(0)
-	// add: (x=5,y=0,z=0) -> index 5
-	addIdx := uint16(5)
+	// existing: (x=0,y=0,z=0)
+	delIdx := vopl.MortonRankFromXYZ(0, 0, 0)
+	// add: (x=5,y=0,z=0)
+	addIdx := vopl.MortonRankFromXYZ(5, 0, 0)
 	// Sanity: ensure initial values
 	if grid[0][0][0] == 0 {
 		t.Fatalf("expected initial voxel at (0,0,0) to be non-zero")
@@ -111,9 +111,7 @@ func TestVPI18_DiffDeletionsAndAdds(t *testing.T) {
 	if got := grid[0][0][0]; got != 0 {
 		t.Fatalf("expected deletion at (0,0,0), got %d", got)
 	}
-	x := int(addIdx % 16)
-	y := int((addIdx / 16) % 16)
-	z := int(addIdx / 256)
+	x, y, z := vopl.XYZFromMortonRank(addIdx)
 	if got := grid[y][x][z]; got != 9 {
 		t.Fatalf("expected add at (%d,%d,%d)=9, got %d", x, y, z, got)
 	}

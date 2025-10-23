@@ -5,8 +5,9 @@ import (
 	"io"
 )
 
-// VPI18 encodes voxel updates as 18-bit entries: 12-bit linear index (x + y*16 + z*256), 6-bit color (0..63)
-// The bitstream is continuous, no padding. Color==0 means delete/clear the voxel at the given index.
+// VPI18 encodes voxel updates as 18-bit entries: 12-bit Morton rank (0..4095) dentro do chunk 16^3, 6-bit color (0..63).
+// A ordem de varredura do stream não importa, mas o índice é o rank em Z-order (Morton) e NÃO linear.
+// O bitstream é contínuo, sem padding. Color==0 significa deletar/limpar o voxel naquele rank.
 
 // VPI18Entry represents a single VPI18 (index,color) pair. In diff streams, Color==0 means delete/clear.
 type VPI18Entry struct {
@@ -24,8 +25,8 @@ func VPI18EncodeGrid(grid *VoxelGrid) []byte {
 				if c == 0 {
 					continue // encode only active updates; from empty this is a full build diff
 				}
-				// linear index inside 16^3 chunk: x + y*16 + z*256
-				idx := uint16(x + y*16 + z*256)
+				// Morton rank dentro do 16^3
+				idx := uint16(MortonRankFromXYZ(x, y, z))
 				// pack: upper 12 bits index, lower 6 bits color
 				entry := (uint64(idx) << 6) | (uint64(c) & 0x3F)
 				bw.writeBits(entry, 18)
@@ -95,14 +96,16 @@ func VPI18ApplyToGrid(grid *VoxelGrid, data []byte) error {
 			}
 			return err
 		}
-		idx := uint16(bits >> 6)
+		idx := uint16(bits >> 6) // Morton rank
 		col := uint8(bits & 0x3F)
 		if idx >= 4096 {
 			return fmt.Errorf("VPI18 index out of range: %d", idx)
 		}
-		x := int(idx % 16)
-		y := int((idx / 16) % 16)
-		z := int(idx / 256)
+		// Map Morton rank -> linear index -> (x,y,z)
+		lin := mortonOrder[int(idx)]
+		x := lin % Width
+		y := (lin / Width) % Height
+		z := lin / (Width * Height)
 		if col == 0 {
 			grid[y][x][z] = 0
 		} else {
