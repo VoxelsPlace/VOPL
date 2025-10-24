@@ -1,5 +1,4 @@
 *.vopl
 *.glb
 *.wasm
-*.vpi
 *.voplpack

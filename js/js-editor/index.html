@@ -173,19 +173,6 @@
         box-shadow: 0 0 0 2px rgba(41, 121, 255, 0.2);
     }
 
-    textarea#vpi18Info {
-      min-height: 80px;
-      background: #fafafa;
-      padding: 8px;
-      overflow-y: auto;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      white-space: pre-wrap;
-      word-break: break-all;
-      font-size: 13px;
-      resize: vertical;
-    }
 
     #tip {
         font-size: 12px;
@@ -230,15 +217,15 @@
     </div>
 
     <div class="ui-group">
-      <h3>Export (VPI18)</h3>
+      <h3>Export (Updates JSON)</h3>
       <div class="input-row">
-        <input id="outputName" value="output1.vpi18" type="text" />
+        <input id="outputName" value="updates.json" type="text" />
       </div>
       <div class="input-row">
-        <button id="importVPI18Btn">Import .vpi18</button>
-        <button id="exportVPI18">Download .vpi18</button>
+        <button id="importUpdatesBtn">Import .json</button>
+        <button id="exportUpdates">Download .json</button>
       </div>
-      <input id="importVPI18" type="file" accept=".vpi18,application/octet-stream" style="display:none" />
+      <input id="importUpdates" type="file" accept=".json,application/json" style="display:none" />
     </div>
 
     <div id="tip">Tip: Right-click also erases</div>

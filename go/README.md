@@ -12,7 +12,7 @@ This module is now library-first and exposes a thin CLI under `cmd/vopltool`.
 - Run without installing:
 
   - `go run ./cmd/vopltool --help`
-  - `go run ./cmd/vopltool vpi2vopl input.vpi output.vopl`
+  - `go run ./cmd/vopltool updatevopl input.vopl updates.json output.vopl`
 
 - Install the CLI:
 

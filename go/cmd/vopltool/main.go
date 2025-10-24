@@ -12,8 +12,7 @@ import (
 func usage() {
 	fmt.Println("Usage: vopltool <command> [args]")
 	fmt.Println("Commands:")
-	fmt.Println("  vpi2vopl input.vpi output.vopl          (decode VPI18 stream to .vopl)")
-	fmt.Println("  updatevopl input.vopl updates.vpi output.vopl  (apply VPI18 diff updates)")
+	fmt.Println("  updatevopl input.vopl updates.json output.vopl  (apply JSON diff updates)")
 	fmt.Println("  vopl2glb input.vopl output.glb         (convert .vopl -> .glb using greedy mesh)")
 	fmt.Println("  voplpack2glb input.voplpack output.glb (convert .voplpack -> .glb, one node per entry)")
 	fmt.Println("  vopl2voplpack output.voplpack input1.vopl [input2.vopl ...]   (pack multiple .vopl into a .voplpack)")
@@ -29,15 +28,6 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "vpi2vopl":
-		if len(os.Args) != 4 {
-			usage()
-			os.Exit(1)
-		}
-		if err := utils.RunVPI18ToVOPLFile(os.Args[2], os.Args[3]); err != nil {
-			fmt.Println("Error:", err)
-			os.Exit(1)
-		}
 	case "updatevopl":
 		if len(os.Args) != 5 {
 			usage()

@@ -10,24 +10,6 @@ import (
 	"github.com/voxelsplace/vopl/go/vopl"
 )
 
-// VPI18ToVOPLBytes decodes a VPI18 bitstream into a .vopl file as bytes.
-func VPI18ToVOPLBytes(vpi []byte) ([]byte, error) {
-	grid, err := vopl.VPI18DecodeToGrid(vpi)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode VPI18: %w", err)
-	}
-	return vopl.SaveVoplGridToBytes(grid), nil
-}
-
-// VOPLToVPI18 encodes the given .vopl bytes into a VPI18 bitstream.
-func VOPLToVPI18(voplBytes []byte) ([]byte, error) {
-	grid, err := vopl.LoadVoplGridFromBytes(voplBytes)
-	if err != nil {
-		return nil, err
-	}
-	return vopl.VPI18EncodeGrid(grid), nil
-}
-
 // VOPLToGLB takes a .vopl file bytes and returns a .glb bytes using greedy mesh
 func VOPLToGLB(voplBytes []byte) ([]byte, error) {
 	grid, err := vopl.LoadVoplGridFromBytes(voplBytes)

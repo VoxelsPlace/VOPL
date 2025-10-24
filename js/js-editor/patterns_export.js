@@ -3,7 +3,7 @@ import { voxelGrid } from './state.js';
 import { updateVoxel } from './input.js';
 import { applyLayers } from './layer_reader.js';
 import { getExampleById } from './examples_loader.js';
-import { encodeVPI18, entriesFromVoxelGrid } from './vpi18.js';
+import { entriesFromVoxelGrid, encodeUpdatesJSON } from './updates_json.js';
 
 export function clearAllVoxels() {
   for (let y = 0; y < HEIGHT; y++) {
@@ -162,21 +162,21 @@ export function gen2x2Contour3Layers() {
   }
 }
 
-// Build a VPI18 binary from the current voxel grid
-export function buildVPI18() {
+// Build an Updates JSON string from the current voxel grid (single chunk id '0')
+export function buildUpdatesJSON() {
   const entries = entriesFromVoxelGrid(voxelGrid);
-  return encodeVPI18(entries);
+  return encodeUpdatesJSON(entries, '0');
 }
 
-// Trigger a client-side download of the VPI18 binary
-export function downloadVPI18() {
-  const bin = buildVPI18();
-  const outName = (document.getElementById('outputName').value || 'output1.vpi18').trim();
-  const blob = new Blob([bin], { type: 'application/octet-stream' });
+// Trigger a client-side download of the Updates JSON
+export function downloadUpdatesJSON() {
+  const json = buildUpdatesJSON();
+  const outName = (document.getElementById('outputName').value || 'updates.json').trim();
+  const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = outName.endsWith('.vpi18') ? outName : `${outName}`;
+  a.download = outName.endsWith('.json') ? outName : `${outName}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -190,8 +190,8 @@ export function genSquare() {
   applyLayers(ex.layers);
 }
 
-// Optional: compute VPI18 diff between two voxel grids (A->B) returning added/changed voxels only
-export function buildVPI18Diff(prevGrid, nextGrid) {
+// Optional: compute Updates JSON diff between two voxel grids (A->B) returning added/changed voxels only
+export function buildUpdatesJSONDiff(prevGrid, nextGrid) {
   const entries = [];
   for (let y = 0; y < HEIGHT; y++) {
     for (let z = 0; z < DEPTH; z++) {
@@ -200,11 +200,11 @@ export function buildVPI18Diff(prevGrid, nextGrid) {
         const b = nextGrid[y][x][z] | 0;
         if (a !== b && b !== 0) {
           const index = x + y * WIDTH + z * WIDTH * HEIGHT;
-          entries.push({ index, paletteIndex: b & 0x3F });
+          entries.push({ index, color: b & 0xFF });
         }
       }
     }
   }
-  return encodeVPI18(entries);
+  return encodeUpdatesJSON(entries, '0');
 }
 
