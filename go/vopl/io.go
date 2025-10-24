@@ -9,59 +9,21 @@ import (
 )
 
 func SaveVoplGrid(grid *VoxelGrid, filename string) error {
-	// adaptive bpp based on max palette index present
-	maxv := uint8(0)
-	for y := 0; y < Height; y++ {
-		for x := 0; x < Width; x++ {
-			for z := 0; z < Depth; z++ {
-				if grid[y][x][z] > maxv {
-					maxv = grid[y][x][z]
-				}
-			}
-		}
-	}
-	bpp := uint8(1)
-	for (1 << bpp) <= int(maxv) {
-		bpp++
-	}
-	if bpp < 1 {
-		bpp = 1
-	}
-	if bpp > 8 {
-		bpp = 8
-	}
-	enc := bestEncoding(grid, bpp)
-	buf := new(bytes.Buffer)
-	buf.WriteString("VOPL")
-	_ = binary.Write(buf, binary.LittleEndian, uint8(3))
-	_ = binary.Write(buf, binary.LittleEndian, uint8(enc.encoding))
-	_ = binary.Write(buf, binary.LittleEndian, uint8(bpp))
-	_ = binary.Write(buf, binary.LittleEndian, uint8(Width))
-	_ = binary.Write(buf, binary.LittleEndian, uint8(Height))
-	_ = binary.Write(buf, binary.LittleEndian, uint8(Depth))
-	_ = binary.Write(buf, binary.LittleEndian, uint16(64)) // palVer
-	_ = binary.Write(buf, binary.LittleEndian, uint32(len(enc.payload)))
-	buf.Write(enc.payload)
-	return os.WriteFile(filename, buf.Bytes(), 0644)
+	// Use a fixed BPP=6 (palette size 64) to guarantee consistent headers across chunks.
+	data := SaveVoplGridToBytesWithBPP(grid, 6)
+	return os.WriteFile(filename, data, 0644)
 }
 
 // SaveVoplGridToBytes returns the .vopl file as bytes instead of writing to disk.
 func SaveVoplGridToBytes(grid *VoxelGrid) []byte {
-	// adaptive bpp based on max palette index present
-	maxv := uint8(0)
-	for y := 0; y < Height; y++ {
-		for x := 0; x < Width; x++ {
-			for z := 0; z < Depth; z++ {
-				if grid[y][x][z] > maxv {
-					maxv = grid[y][x][z]
-				}
-			}
-		}
-	}
-	bpp := uint8(1)
-	for (1 << bpp) <= int(maxv) {
-		bpp++
-	}
+	// Fixed BPP=6 ensures packable uniform headers.
+	return SaveVoplGridToBytesWithBPP(grid, 6)
+}
+
+// SaveVoplGridToBytesWithBPP encodes a grid using the specified bits-per-pixel (1..8)
+// and returns a complete .vopl file as bytes. Using a fixed BPP across chunks
+// guarantees headers remain consistent and can be packed together.
+func SaveVoplGridToBytesWithBPP(grid *VoxelGrid, bpp uint8) []byte {
 	if bpp < 1 {
 		bpp = 1
 	}

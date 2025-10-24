@@ -129,7 +129,13 @@ func PackVOPLs(files map[string][]byte) ([]byte, error) {
 	var common vopl.VOPLHeader
 	first := true
 	for name, data := range files {
-		hdr, payload, err := vopl.ParseVOPLHeaderFromBytes(data)
+		// Normalize each file to a canonical header (BPP=6, same W/H/D/Pal) to avoid pack mismatches.
+		grid, err := vopl.LoadVoplGridFromBytes(data)
+		if err != nil {
+			return nil, err
+		}
+		normalized := vopl.SaveVoplGridToBytes(grid) // now fixed BPP=6
+		hdr, payload, err := vopl.ParseVOPLHeaderFromBytes(normalized)
 		if err != nil {
 			return nil, err
 		}
@@ -139,10 +145,11 @@ func PackVOPLs(files map[string][]byte) ([]byte, error) {
 		if first {
 			common = hdr
 			first = false
-		} else if hdr.BPP != common.BPP || hdr.W != common.W || hdr.H != common.H || hdr.D != common.D || hdr.Pal != common.Pal {
+		} else if hdr.W != common.W || hdr.H != common.H || hdr.D != common.D || hdr.Pal != common.Pal || hdr.BPP != common.BPP {
+			// After normalization these should match; if not, reject.
 			return nil, fmt.Errorf("inconsistent parameters (%s)", name)
 		}
-		enc := data[5]
+		enc := normalized[5]
 		items = append(items, item{name, enc, payload, hdr})
 	}
 	pack := &vopl.Pack{Header: vopl.VOPLHeader{Ver: 3, BPP: common.BPP, W: common.W, H: common.H, D: common.D, Pal: common.Pal}}
