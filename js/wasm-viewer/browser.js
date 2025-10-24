@@ -13,9 +13,9 @@ export async function initVoplWasm(wasmURL = 'vopl.wasm') {
   const result = await WebAssembly.instantiateStreaming(fetch(wasmURL), go.importObject);
   go.run(result.instance);
   // functions are attached on globalThis by the wasm main
-  const { vopl2glb, packVopls, unpackVoplpack } = globalThis;
-  if (!vopl2glb || !packVopls || !unpackVoplpack) {
+  const { vopl2glb, packVopls, unpackVoplpack, decodeVopl } = globalThis;
+  if (!vopl2glb || !packVopls || !unpackVoplpack || !decodeVopl) {
     throw new Error('WASM functions not initialized');
   }
-  return { vopl2glb, packVopls, unpackVoplpack };
+  return { vopl2glb, packVopls, unpackVoplpack, decodeVopl };
 }
