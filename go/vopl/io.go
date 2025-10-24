@@ -104,7 +104,7 @@ func load(b *bytes.Reader) (*VoxelGrid, error) {
 			return nil, err
 		}
 		for i := 0; i < int(cnt); i++ {
-			idx, err := br.readBits(8)
+			idx, err := br.readBits(12)
 			if err != nil {
 				return nil, err
 			}

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/qmuntal/gltf"
 	"github.com/voxelsplace/vopl/go/utils"
 	"github.com/voxelsplace/vopl/go/vopl"
 )
@@ -111,5 +112,150 @@ func TestUtils_UpdateVOPL_WithJSON_UtilsSuite(t *testing.T) {
 	want := makeSmallGrid()
 	if *got != *want {
 		t.Fatalf("grid mismatch after update")
+	}
+}
+
+func TestUtils_UpdateVOPL_ApplyGivenIndicesToEmpty(t *testing.T) {
+	// Create an empty VOPL file and apply the provided update JSON
+	var base vopl.VoxelGrid
+	basePath := "output/base_specific.vopl"
+	outPath := "output/updated_specific.vopl"
+	_ = os.MkdirAll(filepath.Dir(basePath), 0o755)
+	if err := vopl.SaveVoplGrid(&base, basePath); err != nil {
+		t.Fatalf("save base vopl: %v", err)
+	}
+
+	updates := []byte(`{
+		"26304528517632": {
+			"0": 1,
+			"15": 19,
+			"3840": 13,
+			"3855": 7
+		}
+	}`)
+
+	if err := utils.RunUpdateVOPL(updates, basePath, outPath); err != nil {
+		t.Fatalf("RunUpdateVOPL: %v", err)
+	}
+
+	got, err := vopl.LoadVoplGrid(outPath)
+	if err != nil {
+		t.Fatalf("load updated vopl: %v", err)
+	}
+
+	// Expected non-zero voxels derived from linear indices using idx = x + y*W + z*W*H
+	// Indices: 0 -> (0,0,0)=1, 15 -> (15,0,0)=19, 3840 -> (0,0,15)=13, 3855 -> (15,0,15)=7
+	checks := []struct {
+		x, y, z int
+		color   uint8
+	}{
+		{0, 0, 0, 1},
+		{15, 0, 0, 19},
+		{0, 0, 15, 13},
+		{15, 0, 15, 7},
+	}
+
+	for _, c := range checks {
+		if got[c.y][c.x][c.z] != c.color {
+			t.Fatalf("voxel (%d,%d,%d) = %d, want %d", c.x, c.y, c.z, got[c.y][c.x][c.z], c.color)
+		}
+	}
+
+	// Ensure all other voxels remain zero
+	for y := 0; y < vopl.Height; y++ {
+		for x := 0; x < vopl.Width; x++ {
+			for z := 0; z < vopl.Depth; z++ {
+				isChecked := (x == 0 && y == 0 && z == 0) ||
+					(x == 15 && y == 0 && z == 0) ||
+					(x == 0 && y == 0 && z == 15) ||
+					(x == 15 && y == 0 && z == 15)
+				if isChecked {
+					continue
+				}
+				if got[y][x][z] != 0 {
+					t.Fatalf("unexpected non-zero voxel at (%d,%d,%d): %d", x, y, z, got[y][x][z])
+				}
+			}
+		}
+	}
+}
+
+func TestUtils_UpdateVOPL_ToGLB_ApplyGivenIndices(t *testing.T) {
+	// Start from empty VOPL, apply updates, convert to GLB, and validate result
+	var base vopl.VoxelGrid
+	basePath := "output/base_glb.vopl"
+	updatedPath := "output/updated_glb.vopl"
+	glbPath := "output/updated_glb.glb"
+	_ = os.MkdirAll(filepath.Dir(basePath), 0o755)
+	if err := vopl.SaveVoplGrid(&base, basePath); err != nil {
+		t.Fatalf("save base vopl: %v", err)
+	}
+
+	updates := []byte(`{
+		"26304528517632": {
+			"0": 1,
+			"15": 19,
+			"3840": 13,
+			"3855": 7
+		}
+	}`)
+
+	if err := utils.RunUpdateVOPL(updates, basePath, updatedPath); err != nil {
+		t.Fatalf("RunUpdateVOPL: %v", err)
+	}
+	if err := utils.RunVOPL2GLB(updatedPath, glbPath); err != nil {
+		t.Fatalf("RunVOPL2GLB: %v", err)
+	}
+	// Ensure file exists and non-empty
+	if fi, err := os.Stat(glbPath); err != nil || fi.Size() == 0 {
+		t.Fatalf("glb not created or empty")
+	}
+
+	// Load GLB and validate mesh/accessors
+	doc, err := gltf.Open(glbPath)
+	if err != nil {
+		t.Fatalf("open glb: %v", err)
+	}
+	if len(doc.Meshes) != 1 {
+		t.Fatalf("expected 1 mesh, got %d", len(doc.Meshes))
+	}
+	if len(doc.Meshes[0].Primitives) != 1 {
+		t.Fatalf("expected 1 primitive, got %d", len(doc.Meshes[0].Primitives))
+	}
+	prim := doc.Meshes[0].Primitives[0]
+	posAccIdx, ok := prim.Attributes[gltf.POSITION]
+	if !ok {
+		t.Fatalf("POSITION accessor missing")
+	}
+	normAccIdx, ok := prim.Attributes[gltf.NORMAL]
+	if !ok {
+		t.Fatalf("NORMAL accessor missing")
+	}
+	colAccIdx, ok := prim.Attributes[gltf.COLOR_0]
+	if !ok {
+		t.Fatalf("COLOR_0 accessor missing")
+	}
+	if prim.Indices == nil {
+		t.Fatalf("Indices accessor missing")
+	}
+	idxAccIdx := int(*prim.Indices)
+
+	// Expect 4 isolated voxels -> 24 quads -> 96 verts and 144 indices (48 triangles)
+	posAcc := doc.Accessors[posAccIdx]
+	idxAcc := doc.Accessors[idxAccIdx]
+	normAcc := doc.Accessors[normAccIdx]
+	colorAcc := doc.Accessors[colAccIdx]
+
+	if posAcc.Count != 96 {
+		t.Fatalf("POSITION count = %d, want 96", posAcc.Count)
+	}
+	if normAcc.Count != posAcc.Count {
+		t.Fatalf("NORMAL count = %d, want %d", normAcc.Count, posAcc.Count)
+	}
+	if colorAcc.Count != posAcc.Count {
+		t.Fatalf("COLOR_0 count = %d, want %d", colorAcc.Count, posAcc.Count)
+	}
+	if idxAcc.Count != 144 {
+		t.Fatalf("Indices count = %d, want 144", idxAcc.Count)
 	}
 }

@@ -42,7 +42,7 @@ func encodeSparse(grid *VoxelGrid, bpp uint8) []byte {
 		if c == 0 {
 			continue
 		}
-		bw.writeBits(uint64(i), 8)
+		bw.writeBits(uint64(i), 12)
 		bw.writeBits(uint64(c), bpp)
 	}
 	return bw.bytes()

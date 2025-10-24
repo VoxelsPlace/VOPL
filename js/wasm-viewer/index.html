@@ -145,6 +145,7 @@
       }
 
       function fitViewToObject(obj) {
+        obj.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(obj);
         const size = new THREE.Vector3();
         const center = new THREE.Vector3();
@@ -172,6 +173,7 @@
               URL.revokeObjectURL(url);
               clearContent();
               contentGroup.add(gltf.scene);
+              gltf.scene.updateMatrixWorld(true);
               fitViewToObject(gltf.scene);
               setStatus('Model loaded.');
               const vertices = gltf.scene.children[0]?.children[0]?.geometry?.attributes?.position?.count || 0;
